@@ -2,7 +2,8 @@
 
 > 项目结构，两种方式：
 >   1. 不在本项目中，引用项目地址 eg:node.js 之 module.js
->   2. 在本项目中，eg:underscore.js  ![目录结构](image/de65e327-cca2-4593-90b9-5630363dde3e.png)
+>   2. 在本项目中，eg:underscore.js  
+>   ![目录结构](image/de65e327-cca2-4593-90b9-5630363dde3e.png)
 	其中，testapi文件夹 为测试源码 API 所用，无实际意义。
 	underscore注释版.js 为学习材料，有完整注释。
 
