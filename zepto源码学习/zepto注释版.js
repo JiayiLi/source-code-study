@@ -63,6 +63,8 @@ var Zepto = (function() {
 
   // 判断 element 是否符合 selector 的要求
   zepto.matches = function(element, selector) {
+    console.log(element);
+    console.log(selector);
     // 判断是否为dom元素节点，nodeType 属性 值为1;
     // 当值为2时，为属性节点。
     if (!selector || !element || element.nodeType !== 1) return false
@@ -98,22 +100,51 @@ var Zepto = (function() {
     match = ~zepto.qsa(parent, selector).indexOf(element)
     // 如果没有 父节点，就执行 tempParent 移除当前元素，因为前面把当前元素加入到这个tempParent中
     temp && tempParent.removeChild(element)
+
+    // 返回～zepto.qsa的结果
     return match
   }
 
+  // 在代码中部，执行了
+  // $.each("Boolean Number String Function Array Date RegExp Object Error".split(" "), function(i, name) {
+  //   class2type[ "[object " + name + "]" ] = name.toLowerCase()
+  // })
+  // 用来给 class2type 对象赋值
+  //
+  //type 用来判断类型
   function type(obj) {
     return obj == null ? String(obj) :
       class2type[toString.call(obj)] || "object"
   }
 
+  // 判断是否是函数
   function isFunction(value) { return type(value) == "function" }
+
+  // 判断是否是 window对象（注意，w为小写）指当前的浏览器窗口，window对象的window属性指向自身。
+  // 即 window.window === window
   function isWindow(obj)     { return obj != null && obj == obj.window }
+  
+  // 判断是否是 document 对象
+  // window.document.nodeType == 9 数字表示为9，常量表示为 DOCUMENT_NODE 
   function isDocument(obj)   { return obj != null && obj.nodeType == obj.DOCUMENT_NODE }
+
+  // 判断是否是 object
   function isObject(obj)     { return type(obj) == "object" }
+
+  // 判断是否是最基本的 object：Object.getPrototypeOf(obj) == Object.prototype
+  // Object.getPrototypeOf() 方法返回指定对象的原型（即, 内部[[Prototype]]属性的值）
+  // getPrototypeOf 和 prototype 的区别：
+  // getPrototypeOf是个function，而 prototype 是个属性
+  // eg: 
+  // function MyConstructor() {}
+  // var obj = new MyConstructor()
+  // Object.getPrototypeOf(obj) === Object.prototype // false
+  // var t = {c:"heihei"};
+  // Object.getPrototypeOf(t) === Object.prototype // true
   function isPlainObject(obj) {
     return isObject(obj) && !isWindow(obj) && Object.getPrototypeOf(obj) == Object.prototype
   }
-
+  // 判断是否是数组或者对象数组
   function likeArray(obj) {
     var length = !!obj && 'length' in obj && obj.length,
       type = $.type(obj)
@@ -124,9 +155,29 @@ var Zepto = (function() {
     )
   }
 
+  // 筛选数组，踢出 null undefined 元素
   function compact(array) { return filter.call(array, function(item){ return item != null }) }
+  // $.fn.concat 在下文中定义
+  // $.fn = {
+  //      ......
+  //  concat: function(){
+  //    var i, value, args = []
+  //    for (i = 0; i < arguments.length; i++) {
+  //      value = arguments[i]
+  //      args[i] = zepto.isZ(value) ? value.toArray() : value
+  //    }
+  //    return concat.apply(zepto.isZ(this) ? this.toArray() : this, args)
+  //  },
+  //      ......
+  // }
+  // 
+  // ???????
   function flatten(array) { return array.length > 0 ? $.fn.concat.apply([], array) : array }
+
+  // 用于 css 的 camalCase 转换，例如 background-color 转换为 backgroundColor
   camelize = function(str){ return str.replace(/-+(.)?/g, function(match, chr){ return chr ? chr.toUpperCase() : '' }) }
+
+  // 将 backgroundColor 转换为 background-color 格式
   function dasherize(str) {
     return str.replace(/::/g, '/')
            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
@@ -134,8 +185,11 @@ var Zepto = (function() {
            .replace(/_/g, '-')
            .toLowerCase()
   }
+
+  // 数组去重  eg:[1,1,2,3,3] 替换为 [1,2,3]
   uniq = function(array){ return filter.call(array, function(item, idx){ return array.indexOf(item) == idx }) }
 
+  
   function classRE(name) {
     return name in classCache ?
       classCache[name] : (classCache[name] = new RegExp('(^|\\s)' + name + '(\\s|$)'))
@@ -215,6 +269,7 @@ var Zepto = (function() {
   // `$.zepto.isZ` should return `true` if the given object is a Zepto
   // collection. This method can be overridden in plugins.
   zepto.isZ = function(object) {
+    // 判断 object 否是 zepto.Z 的实例
     return object instanceof zepto.Z
   }
 
@@ -298,16 +353,36 @@ var Zepto = (function() {
   // `$.zepto.qsa` is Zepto's CSS selector implementation which
   // uses `document.querySelectorAll` and optimizes for some special cases, like `#id`.
   // This method can be overridden in plugins.
+  // 当浏览器不支持 el.matches 时，可以用 document.querySelectorAll 来实现 matchs
+  // https://developer.mozilla.org/zh-CN/docs/Web/API/Element/matches
+  // 
+  // Zepto的css选择器，使用document.querySelectorAll 及优化处理一些特殊情况，可被插件覆盖
   zepto.qsa = function(element, selector){
     var found,
-        maybeID = selector[0] == '#',
-        maybeClass = !maybeID && selector[0] == '.',
+        maybeID = selector[0] == '#', //如果有 ＃ 就是id选择器
+        maybeClass = !maybeID && selector[0] == '.', //不是id选择器&& 有 . ，是class选择器
+       
+        // 是如果是 id 或 class,则取符号后的名字,如果没有类和名字,则直接是selector
+        // eg:selector = "#xixi"; selector.slice(1); 输出 "xixi" 
         nameOnly = maybeID || maybeClass ? selector.slice(1) : selector, // Ensure that a 1 char tag name still gets checked
+        // simpleSelectorRE 用于匹配一个包括（字母、数组、下划线、-）的字符串， 是否是一个简单的字符串（可能是一个复杂的选择器，如 'div#div1 .item[link] .red'）
         isSimple = simpleSelectorRE.test(nameOnly)
+
+    // 以下代码的基本思路是：
+    // 1. 优先通过 ID 获取元素；
+    // 2. 然后试图通过 className 和 tagName 获取元素
+    // 3. 最后通过 querySelectorAll 来获取
+
+        // 判断是否有getElementById方法 && 是个单选择 && 是个id选择器
     return (element.getElementById && isSimple && maybeID) ? // Safari DocumentFragment doesn't have getElementById
+      // 如果找到元素，则返回 ［该元素］，否则返回 ［］。
       ( (found = element.getElementById(nameOnly)) ? [found] : [] ) :
+      //如果不满足判断条件，element既不是dom元素节点，也不是整个文档（DOM 树的根节点）  #document，也不是 代表轻量级的 Document 对象，能够容纳文档的某个部分 #document 片段，那么就返回［］因为其他节点找不到元素
       (element.nodeType !== 1 && element.nodeType !== 9 && element.nodeType !== 11) ? [] :
+      // 将获取的所有元素集合，都转换为数组       
       slice.call(
+        // 条件判断  A ? (B ? C : D) : E
+        // 判断是否单选择, 不是 id 选择器, 有 getElementByClassName 方法
         isSimple && !maybeID && element.getElementsByClassName ? // DocumentFragment doesn't have getElementsByClassName/TagName
           maybeClass ? element.getElementsByClassName(nameOnly) : // If it's simple, it could be a class
           element.getElementsByTagName(selector) : // Or a tag
@@ -459,7 +534,7 @@ var Zepto = (function() {
     concat: function(){
       var i, value, args = []
       for (i = 0; i < arguments.length; i++) {
-        value = arguments[i]
+        value = arguments[i] // value 是最后一个参数
         args[i] = zepto.isZ(value) ? value.toArray() : value
       }
       return concat.apply(zepto.isZ(this) ? this.toArray() : this, args)
@@ -490,9 +565,11 @@ var Zepto = (function() {
       }
       return this
     },
+    // 获得整个数组或者是数组中的单个元素，未传参数，直接返回一整个数组，有参数，则试图返回单个元素（大于0，小于0 两种情况）
     get: function(idx){
       return idx === undefined ? slice.call(this) : this[idx >= 0 ? idx : idx + this.length]
     },
+
     toArray: function(){ return this.get() },
     size: function(){
       return this.length
