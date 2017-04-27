@@ -1069,8 +1069,10 @@ var Zepto = (function() {
            this[0].value)
       }
     },
-    // 用来获取元素的位置与大小信息
+    // 用来读写元素的位置与大小信息
     offset: function(coordinates){
+      // 如果有 coordinates 参数，设置坐标值，并返回当前对象
+      // 遍历每个元素，获取它的父元素的offset属性，之后将要设置的偏移位置减去父元素的偏移位置就能得到实际应该设置的left与top属性
       if (coordinates) return this.each(function(index){
         var $this = $(this),
             coords = funcArg(this, coordinates, index, $this.offset()),
@@ -1079,14 +1081,20 @@ var Zepto = (function() {
               top:  coords.top  - parentOffset.top,
               left: coords.left - parentOffset.left
             }
-
+        // position static时，设置 top、left是无效的
         if ($this.css('position') == 'static') props['position'] = 'relative'
+        // 通过 css 赋值
         $this.css(props)
       })
+      // 当前对象是空，则返回 null
       if (!this.length) return null
+      // 如果元素尚未在DOM中则返回“{top:0,left:0}”
+      // Document.documentElement 是一个会返回文档对象（document）的根元素的只读属性（如HTML文档的 <html> 元素）。
       if (document.documentElement !== this[0] && !$.contains(document.documentElement, this[0]))
         return {top: 0, left: 0}
+      // Element.getBoundingClientRect()方法返回元素的大小及其相对于视口的位置。
       var obj = this[0].getBoundingClientRect()
+      // window.pageXOffset 和 window.pageYOffset 可获取网页滚动的距离，
       return {
         left: obj.left + window.pageXOffset,
         top: obj.top + window.pageYOffset,
@@ -1094,12 +1102,18 @@ var Zepto = (function() {
         height: Math.round(obj.height)
       }
     },
+    // 设置、获取 css
     css: function(property, value){
+      // 获取css
       if (arguments.length < 2) {
+        // 获取第一个元素
         var element = this[0]
         if (typeof property == 'string') {
+          // 如果第一个无元素，直接返回。否则继续
           if (!element) return
+          // 先从elem内联样式获取（element.style），此时需要 camelize(property) 转换，如将 background-color 变为 backgroundColor，如果未找到，则从css样式获取 computedStyle.getPropertyValue(property) 
           return element.style[camelize(property)] || getComputedStyle(element, '').getPropertyValue(property)
+        // 参数为数组
         } else if (isArray(property)) {
           if (!element) return
           var props = {}
@@ -1111,12 +1125,16 @@ var Zepto = (function() {
         }
       }
 
+      // 设置属性
       var css = ''
       if (type(property) == 'string') {
+        // 如果value参数是 '' null undefined 则移除这个css样式
         if (!value && value !== 0)
           this.each(function(){ this.style.removeProperty(dasherize(property)) })
         else
+          // maybeAddPx(property, value) 需要增加 px 的增加上
           css = dasherize(property) + ":" + maybeAddPx(property, value)
+      // property 是对象的情况
       } else {
         for (key in property)
           if (!property[key] && property[key] !== 0)
@@ -1127,15 +1145,20 @@ var Zepto = (function() {
 
       return this.each(function(){ this.style.cssText += ';' + css })
     },
+    // 获取一个元素的索引值
     index: function(element){
+      //这里的$(element)[0]是为了将字符串转成node,因为this是个包含node的数组
       return element ? this.indexOf($(element)[0]) : this.parent().children().indexOf(this[0])
     },
+    // 是否含有指定的类样式
     hasClass: function(name){
       if (!name) return false
+      //some ES5的新方法 有一个匹配，即返回true 
       return emptyArray.some.call(this, function(el){
         return this.test(className(el))
       }, classRE(name))
     },
+    // 增加一个或多个类名
     addClass: function(name){
       if (!name) return this
       return this.each(function(idx){
@@ -1148,17 +1171,22 @@ var Zepto = (function() {
         classList.length && className(this, cls + (cls ? " " : "") + classList.join(" "))
       })
     },
+    // 删除一个或多个类名
     removeClass: function(name){
       return this.each(function(idx){
         if (!('className' in this)) return
         if (name === undefined) return className(this, '')
         classList = className(this)
-        funcArg(this, name, idx, classList).split(/\s+/g).forEach(function(klass){
+        funcArg(this, name, idx, classList).split(/\s+/g).forEach(function(klass){ 
+          //替换删除
           classList = classList.replace(classRE(klass), " ")
         })
         className(this, classList.trim())
       })
     },
+    // 切换类的添加或移除
+    // 如果 when === true 则单纯执行 addClass
+    // 如果 when === false 则单纯执行 removeClass
     toggleClass: function(name, when){
       if (!name) return this
       return this.each(function(idx){
@@ -1169,14 +1197,18 @@ var Zepto = (function() {
         })
       })
     },
+    // 读写元素 滚动条的垂直偏移
     scrollTop: function(value){
       if (!this.length) return
       var hasScrollTop = 'scrollTop' in this[0]
+      // 读
       if (value === undefined) return hasScrollTop ? this[0].scrollTop : this[0].pageYOffset
+      // 写
       return this.each(hasScrollTop ?
         function(){ this.scrollTop = value } :
         function(){ this.scrollTo(this.scrollX, value) })
     },
+    // 读写元素 滚动条的垂直偏移
     scrollLeft: function(value){
       if (!this.length) return
       var hasScrollLeft = 'scrollLeft' in this[0]
@@ -1185,23 +1217,30 @@ var Zepto = (function() {
         function(){ this.scrollLeft = value } :
         function(){ this.scrollTo(value, this.scrollY) })
     },
+    // 返回集合中第一个元素的相对于定位元素的偏移
     position: function() {
       if (!this.length) return
 
       var elem = this[0],
         // Get *real* offsetParent
+        // 找到第一个定位过的祖先元素
+        // HTMLElement.offsetParent 是一个只读属性，返回一个指向最近的（closest，指包含层级上的最近）包含该元素的定位元素。
         offsetParent = this.offsetParent(),
         // Get correct offsets
+        // 获取自身的offset
         offset       = this.offset(),
+        // 获取父元素的坐标
         parentOffset = rootNodeRE.test(offsetParent[0].nodeName) ? { top: 0, left: 0 } : offsetParent.offset()
 
       // Subtract element margins
       // note: when an element has margin: auto the offsetLeft and marginLeft
       // are the same in Safari causing offset.left to incorrectly be 0
+      // 坐标减去外边框 margin 宽度
       offset.top  -= parseFloat( $(elem).css('margin-top') ) || 0
       offset.left -= parseFloat( $(elem).css('margin-left') ) || 0
 
       // Add offsetParent borders
+      // 加上父元素的border
       parentOffset.top  += parseFloat( $(offsetParent[0]).css('border-top-width') ) || 0
       parentOffset.left += parseFloat( $(offsetParent[0]).css('border-left-width') ) || 0
 
@@ -1211,9 +1250,11 @@ var Zepto = (function() {
         left: offset.left - parentOffset.left
       }
     },
+    // 返回第一个匹配元素用于定位的祖先元素
     offsetParent: function() {
       return this.map(function(){
         var parent = this.offsetParent || document.body
+        // 如果找到的定位元素 position=‘static’则继续往上找，直到body/Html
         while (parent && !rootNodeRE.test(parent.nodeName) && $(parent).css("position") == "static")
           parent = parent.offsetParent
         return parent
@@ -1222,18 +1263,26 @@ var Zepto = (function() {
   }
 
   // for now
+  // 给remove方法添加一个别名
   $.fn.detach = $.fn.remove
 
   // Generate the `width` and `height` functions
+  // 在原型上添加width和height方法
   ;['width', 'height'].forEach(function(dimension){
+    //将width,hegiht转成Width,Height，用于document获取
     var dimensionProperty =
       dimension.replace(/./, function(m){ return m[0].toUpperCase() })
 
     $.fn[dimension] = function(value){
       var offset, el = this[0]
+      //读时，是window 用innerWidth,innerHeight获取
       if (value === undefined) return isWindow(el) ? el['inner' + dimensionProperty] :
+        //是document，用scrollWidth,scrollHeight获取
         isDocument(el) ? el.documentElement['scroll' + dimensionProperty] :
+        // 是元素 用offset
         (offset = this.offset()) && offset[dimension]
+
+      // 写
       else return this.each(function(idx){
         el = $(this)
         el.css(dimension, funcArg(this, value, idx, el[dimension]()))
@@ -1241,6 +1290,7 @@ var Zepto = (function() {
     }
   })
 
+  // 递归遍历一个节点及其子节点。每遍历一个node执行一次fun(node)。
   function traverseNode(node, fun) {
     fun(node)
     for (var i = 0, len = node.childNodes.length; i < len; i++)
@@ -1249,7 +1299,11 @@ var Zepto = (function() {
 
   // Generate the `after`, `prepend`, `before`, `append`,
   // `insertAfter`, `insertBefore`, `appendTo`, and `prependTo` methods.
+  // 用来为原型生成after，prepend等八个与在不同位置插入元素相关的方法
+  // adjacencyOperator ＝ ['after', 'prepend', 'before', 'append']；
   adjacencyOperators.forEach(function(operator, operatorIndex) {
+    // 区分出这四个操作是“内部操作”还是“外部操作”，所谓“外部操作”指的是对发起这个操作的元素的相邻方向进行的操作，就是after与before，而“内部操作”指的是对发起操作的元素的子元素集合进行的操作，就是append与prepend
+    // 选出内部操作
     var inside = operatorIndex % 2 //=> prepend, append
 
     $.fn[operator] = function(){
@@ -1257,6 +1311,7 @@ var Zepto = (function() {
       var argType, nodes = $.map(arguments, function(arg) {
             var arr = []
             argType = type(arg)
+            // 参数是数组
             if (argType == "array") {
               arg.forEach(function(el) {
                 if (el.nodeType !== undefined) return arr.push(el)
@@ -1265,31 +1320,41 @@ var Zepto = (function() {
               })
               return arr
             }
+            //传参非 object、array、null，就直接调用zepto.fragment生成DOM
             return argType == "object" || arg == null ?
               arg : zepto.fragment(arg)
           }),
+          // 如果$长度>1,需要克隆里面的元素
           parent, copyByClone = this.length > 1
+      //为0，不需要操作，直接返回
       if (nodes.length < 1) return this
 
       return this.each(function(_, target){
         parent = inside ? target : target.parentNode
 
         // convert all methods to a "before" operation
-        target = operatorIndex == 0 ? target.nextSibling :
-                 operatorIndex == 1 ? target.firstChild :
-                 operatorIndex == 2 ? target :
-                 null
-
+        target = operatorIndex == 0 ? target.nextSibling : // after，target等于下一个兄弟元素，然后将DOM通过insertBefore插入到target前
+                 operatorIndex == 1 ? target.firstChild : // prepend target为parent的第一个元素，然后将DOM通过insertBefore插入到target前
+                 operatorIndex == 2 ? target : //before  直接将将DOM通过insertBefore插入到target前
+                 null // 直接调用$(target).append
+        
+        //父元素是否在document中
         var parentInDocument = $.contains(document.documentElement, parent)
 
+        //遍历待插入的元素
         nodes.forEach(function(node){
           if (copyByClone) node = node.cloneNode(true)
+          //parent元素不存在，没法执行插入操作，直接删除，返回
           else if (!parent) return $(node).remove()
-
+          //插入元素
           parent.insertBefore(node, target)
+
+          // 如果插入的事script标签
+          // 如果父元素在document里，修正script标签。原因是script标签通过innerHTML加入DOM不执行。需要在全局环境下执行它
           if (parentInDocument) traverseNode(node, function(el){
             if (el.nodeName != null && el.nodeName.toUpperCase() === 'SCRIPT' &&
                (!el.type || el.type === 'text/javascript') && !el.src){
+              // Node.ownerDocument 只读属性会返回当前节点的顶层的 document 对象。
               var target = el.ownerDocument ? el.ownerDocument.defaultView : window
               target['eval'].call(target, el.innerHTML)
             }
@@ -1308,16 +1373,21 @@ var Zepto = (function() {
     }
   })
 
+  // 将形成的原型对象$.fn为挂载在Z.prototype与zepto.Z.prototype上
   zepto.Z.prototype = Z.prototype = $.fn
 
   // Export internal API functions in the `$.zepto` namespace
+  // 将两个方法挂载在zepto对象上
   zepto.uniq = uniq
   zepto.deserializeValue = deserializeValue
-  $.zepto = zepto
 
+  // 把zepto挂载在$入口函数上
+  $.zepto = zepto
+  // 并返回$
   return $
 })()
 
 // If `$` is not yet defined, point it to `Zepto`
+// 入口函数挂载在window对象上
 window.Zepto = Zepto
 window.$ === undefined && (window.$ = Zepto)
