@@ -17,16 +17,16 @@
 // console.log(c);
 
 
-function Z(dom, selector) {
-	var i, len = dom ? dom.length : 0
-	console.log(dom);
-	for (i = 0; i < len; i++) this[i] = dom[i];
-	this.length = len
-	this.selector = selector || ''
-}
+// function Z(dom, selector) {
+// 	var i, len = dom ? dom.length : 0
+// 	console.log(dom);
+// 	for (i = 0; i < len; i++) this[i] = dom[i];
+// 	this.length = len
+// 	this.selector = selector || ''
+// }
 
-var t = new Z ($('li'),);
-console.log(t.length);
+// var t = new Z ($('li'),);
+// console.log(t.length);
 // var hZ = function(dom, selector) {
 // 	console.info(dom);
 // 	console.info(selector);
@@ -45,3 +45,21 @@ console.log(t.length);
 // 	})
 // }
 // console.log(c(t));
+// 
+// 
+
+
+var hei = {
+	constructor:c,
+	concat:function(){
+		console.log("concat");
+	}
+}
+var c = [];
+c.prototype = hei;
+
+console.log(c);
+
+
+// console.log(window);
+
