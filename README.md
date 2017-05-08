@@ -20,9 +20,10 @@
 - [【 js 基础 】 深浅拷贝](http://www.cnblogs.com/lijiayi/p/jsdeeepcopy.html)
 - [【 js 性能优化】underscore throttle 与 debounce 节流](http://www.cnblogs.com/lijiayi/p/jsoptimise1.html)
 
+看完 underscore 建议阅读书籍《javascript函数式编程》
+
 ### zepto.js
 **轻量级的针对现代高级浏览器的JavaScript库,与jquery有着类似的api**
 
 学习文章推荐：
 [zepto对象思想与源码分析](https://www.kancloud.cn/wangfupeng/zepto-design-srouce/173682)
-
