@@ -25,5 +25,9 @@
 ### zepto.js
 **轻量级的针对现代高级浏览器的JavaScript库,与jquery有着类似的api**
 
+知识点梳理：
+- [【 js 基础 】【 源码学习 】 setTimeout(fn, 0) 的作用](http://www.cnblogs.com/lijiayi/p/setTimeout0.html)
+
+
 学习文章推荐：
 [zepto对象思想与源码分析](https://www.kancloud.cn/wangfupeng/zepto-design-srouce/173682)
