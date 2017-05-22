@@ -31,3 +31,9 @@
 
 学习文章推荐：
 [zepto对象思想与源码分析](https://www.kancloud.cn/wangfupeng/zepto-design-srouce/173682)
+
+
+
+### backbone.js
+**以类jq和underscore为基础的mvc框架**
+
