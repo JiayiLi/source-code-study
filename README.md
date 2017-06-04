@@ -9,6 +9,7 @@
 
 
 
+
 ### node.js 之 module.js 
 项目地址 ：[node.js-module](https://github.com/JiayiLi/node.js-module)  有完整注释；
 系统知识梳理：[【 js 模块加载 】深入学习模块化加载（node.js 模块源码）](http://www.cnblogs.com/lijiayi/p/js_node_module.html) 
@@ -29,7 +30,7 @@
 - [【 js 基础 】【 源码学习 】 setTimeout(fn, 0) 的作用](http://www.cnblogs.com/lijiayi/p/setTimeout0.html)
 
 
-学习文章推荐：
+学习资料推荐：
 [zepto对象思想与源码分析](https://www.kancloud.cn/wangfupeng/zepto-design-srouce/173682)
 
 
@@ -37,3 +38,9 @@
 ### backbone.js
 **以类jq和underscore为基础的mvc框架**
 
+
+
+------
+
+综合 以上：
+[【 js 基础 】【 源码学习 】源码设计 （持续更新）](http://www.cnblogs.com/lijiayi/p/sourcecode.html)
