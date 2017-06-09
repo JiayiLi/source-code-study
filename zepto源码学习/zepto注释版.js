@@ -115,7 +115,7 @@ var Zepto = (function() {
   //type 用来判断类型
   function type(obj) {
     return obj == null ? String(obj) :
-      class2type[toString.call(obj)] || "object"
+      [toString.call(obj)] || "object"
   }
 
   // 判断是否是函数

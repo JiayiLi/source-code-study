@@ -9,10 +9,13 @@
 
   // Establish the root object, `window` (`self`) in the browser, or `global` on the server.
   // We use `self` instead of `window` for `WebWorker` support.
+  // 定义全局对象 root 变量，在浏览器环境下为 window，在 服务器 环境下为 global, self 指向window
   var root = (typeof self == 'object' && self.self === self && self) ||
             (typeof global == 'object' && global.global === global && global);
 
   // Set up Backbone appropriately for the environment. Start with AMD.
+  // 支持AMD规范
+  // 使用define函数定义Backbone模块, 依赖`underscore`, `jquery`, `exports`三个模块.
   if (typeof define === 'function' && define.amd) {
     define(['underscore', 'jquery', 'exports'], function(_, $, exports) {
       // Export global even in AMD case in case this script is loaded with
@@ -21,12 +24,15 @@
     });
 
   // Next for Node.js or CommonJS. jQuery may not be needed as a module.
+  // 支持 commonJs 规范(NodeJS使用的规范, 主要用于服务器端, 所以jQuery非必须).
+  // CommonJS规范中, exports是用于导出模块的对象.
   } else if (typeof exports !== 'undefined') {
     var _ = require('underscore'), $;
     try { $ = require('jquery'); } catch (e) {}
     factory(root, exports, _, $);
 
   // Finally, as a browser global.
+  // 以上两种情况都没有，则以最简单的执行函数方式，将函数的返回值作为全局对象Backbone
   } else {
     root.Backbone = factory(root, {}, root._, (root.jQuery || root.Zepto || root.ender || root.$));
   }
@@ -38,20 +44,28 @@
 
   // Save the previous value of the `Backbone` variable, so that it can be
   // restored later on, if `noConflict` is used.
+  // 缓存 Backbone 变量，用于防止命名冲突; 与之后的`noConflict`函数结合使用.
   var previousBackbone = root.Backbone;
 
   // Create a local reference to a common array method we'll want to use later.
+  // 缓存数组的 slice 方法
   var slice = Array.prototype.slice;
 
   // Current version of the library. Keep in sync with `package.json`.
+  // 类库版本
   Backbone.VERSION = '1.3.3';
 
   // For Backbone's purposes, jQuery, Zepto, Ender, or My Library (kidding) owns
   // the `$` variable.
+  // 定义第三方库为统一的变量"Backbone.$", 用于在视图(View), 事件处理和与服务器数据同步(sync)时调用库中的方法
+  // 支持的库包括jQuery, Zepto等, 它们语法相同, 但Zepto更适用移动开发, 它主要针对Webkit内核浏览器
+  // 也可以通过自定义一个与jQuery语法相似的自定义库, 供Backbone使用(有时我们可能需要一个比jQuery, Zepto更轻巧的自定义版本)
   Backbone.$ = $;
 
   // Runs Backbone.js in *noConflict* mode, returning the `Backbone` variable
   // to its previous owner. Returns a reference to this Backbone object.
+  // 如过全局变量已经存在 Backbone ，那么 使用此函数更换类库变量名，例子：
+  // var test = Backbone.noConflict();  
   Backbone.noConflict = function() {
     root.Backbone = previousBackbone;
     return this;
@@ -60,17 +74,22 @@
   // Turn on `emulateHTTP` to support legacy HTTP servers. Setting this option
   // will fake `"PATCH"`, `"PUT"` and `"DELETE"` requests via the `_method` parameter and
   // set a `X-Http-Method-Override` header.
+  // 对于不支持REST方式的浏览器, 可以设置Backbone.emulateHTTP = true
+  // 与服务器请求将以POST方式发送, 并在数据中加入_method参数标识操作名称, 同时也将发送X-HTTP-Method-Override头信息
   Backbone.emulateHTTP = false;
 
   // Turn on `emulateJSON` to support legacy servers that can't deal with direct
   // `application/json` requests ... this will encode the body as
   // `application/x-www-form-urlencoded` instead and will send the model in a
   // form param named `model`.
+  // 对于不支持application/json编码的浏览器, 可以设置Backbone.emulateJSON = true;
+  // 将请求类型设置为application/x-www-form-urlencoded, 并将数据放置在model参数中实现兼容
   Backbone.emulateJSON = false;
 
   // Backbone.Events
   // ---------------
-
+  // 自定义事件相关
+  
   // A module that can be mixed in to *any object* in order to provide it with
   // a custom event channel. You may bind a callback to an event with `on` or
   // remove with `off`; `trigger`-ing an event fires all callbacks in
