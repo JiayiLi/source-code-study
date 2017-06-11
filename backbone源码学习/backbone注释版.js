@@ -88,99 +88,174 @@
 
   // Backbone.Events
   // ---------------
-  // 自定义事件相关
-  
-  // A module that can be mixed in to *any object* in order to provide it with
-  // a custom event channel. You may bind a callback to an event with `on` or
-  // remove with `off`; `trigger`-ing an event fires all callbacks in
-  // succession.
+    // 自定义事件相关
+    
+    // A module that can be mixed in to *any object* in order to provide it with
+    // a custom event channel. You may bind a callback to an event with `on` or
+    // remove with `off`; `trigger`-ing an event fires all callbacks in
+    // succession.
   //
   //     var object = {};
   //     _.extend(object, Backbone.Events);
   //     object.on('expand', function(){ alert('expanded'); });
   //     object.trigger('expand');
   //
+  //  初始化为一个空对象
   var Events = Backbone.Events = {};
 
   // Regular expression used to split event strings.
+  // eventSplitter指定处理多个事件时, 事件名称的解析规则
   var eventSplitter = /\s+/;
 
   // A private global variable to share between listeners and listenees.
+  // 用于在监听器和监听器之间共享的私有全局变量。
   var _listening;
 
   // Iterates over the standard `event, callback` (as well as the fancy multiple
   // space-separated events `"change blur", callback` and jQuery-style event
   // maps `{event: callback}`).
+  // 迭代不同的`event，callback`绑定形式：标准形式：`event, callback` ；多个空格分隔的事件形式：`"change blur", callback` 和 jQuery风格的事件地图： `{event: callback}`。
+  // 起到分流的作用。
+  // 参数：
+  // iteratee 实际真正要调用的函数，做绑定iteratee = onApi , onceMap; 做解绑 iteratee = offApi; 做触发 iteratee = triggerApi
+  // events 事件，有很多情况中传入的是this._events
+  // name 自己起的名字或者之前起的名字，代表了一个事件
+  // callback 回调函数，触发事件时触发
+  // opts 参数，在 iteratee 函数的内部有自己的作用
   var eventsApi = function(iteratee, events, name, callback, opts) {
     var i = 0, names;
+    // 当 name 是 object 的时候，即为 jQuery风格的事件地图： `{event: callback}`。
     if (name && typeof name === 'object') {
       // Handle event maps.
+      // 如果有回调事件，并且 opts 有 'context'即回调函数上下文，并且没有被赋值，则将当前的 回调函数 赋值给 opts.context
       if (callback !== void 0 && 'context' in opts && opts.context === void 0) opts.context = callback;
+
+      // 递归 循环 所有的 key,也就是所有的事件 event，即最后成为 标准形式的迭代
       for (names = _.keys(name); i < names.length ; i++) {
         events = eventsApi(iteratee, events, names[i], name[names[i]], opts);
       }
+
+    // 当 name 是多个空格分隔的事件形式：`"change blur", callback`
     } else if (name && eventSplitter.test(name)) {
       // Handle space-separated event names by delegating them individually.
+      // 通过单独委托来处理空格分隔的事件绑定形式
       for (names = name.split(eventSplitter); i < names.length; i++) {
         events = iteratee(events, names[i], callback, opts);
       }
+
+    // 当name 是标准形式 `event, callback`
     } else {
       // Finally, standard events.
       events = iteratee(events, name, callback, opts);
     }
+
+    // 最后返回 events
     return events;
   };
 
   // Bind an event to a `callback` function. Passing `"all"` will bind
   // the callback to all events fired.
+  // 将一个事件绑定到 `callback` 函数上。事件触发时执行回调函数`callback`。
+  // 典型调用方式是`object.on('name', callback, context)`.
+  // `name`是监听的事件名, `callback`是事件触发时的回调函数, `context`是回调函数上下文(未指定时就默认为`object`).
+  // 如果传递参数 `"all"，那么将会把这个事件绑定到所有的回调函数上。
   Events.on = function(name, callback, context) {
+    // this._events 保存所有监听事件
     this._events = eventsApi(onApi, this._events || {}, name, callback, {
       context: context,
       ctx: this,
       listening: _listening
     });
 
+    // 如果有 _listening
     if (_listening) {
+      // 定义变量 listener，赋值 this._listeners ；
       var listeners = this._listeners || (this._listeners = {});
+      // 将上文定义的私有全局变量_listening 赋值给 listeners[_listening.id];
       listeners[_listening.id] = _listening;
       // Allow the listening to use a counter, instead of tracking
       // callbacks for library interop
+      // 
+      // todo
+      // 允许 listening 使用计数器，而不是跟踪库互操作性回调
       _listening.interop = false;
     }
 
+    // 返回 this
     return this;
   };
 
   // Inversion-of-control versions of `on`. Tell *this* object to listen to
   // an event in another object... keeping track of what it's listening to
   // for easier unbinding later.
+  // todo------------
+  // 
+  // “on”的控制反转版本。
+  // 让 object 监听 另一个（other）对象上的一个特定事件。跟踪它正在监听的内容，以便以后解除绑定。
+  // 
+  // 这个函数的作用就是构建_listeningTo的一个过程。
+  // _listeningTo:当前对象所监听的对象。对象里面是一个或多个以被监听对象的_listenId为名字的对象。每一个对象结构如下：
+  // {
+  //     count: 5, // 监听了几个事件
+  //     id: 13, // 监听方的id
+  //     listeningTo: Object, // 自身相关的一些信息
+  //     obj: child, // 被监听的对象
+  //     objId: "12" // 被监听对象id
+  // }
+  // 
+  // 参数：`obj`是当前`object`想要监听的`obj`对象, `name`是监听的事件名, `callback`是监听事件触发时的回调函数.
   Events.listenTo = function(obj, name, callback) {
+    // 如果没有 obj ，则直接返回 this
     if (!obj) return this;
+
+    // 定义被监听对象的索引值 id 为当前 obj._listenId 如果没有 obj._listenId，则通过_.uniqueId('l') 生成唯一 id 赋值
     var id = obj._listenId || (obj._listenId = _.uniqueId('l'));
+
+    // 定义变量 listeningTo ，赋值为 this._listeningTo 或者 {}
     var listeningTo = this._listeningTo || (this._listeningTo = {});
     var listening = _listening = listeningTo[id];
 
     // This object is not listening to any other events on `obj` yet.
     // Setup the necessary references to track the listening callbacks.
+    // 如果当前 object 还没有监听 obj 上的任何其他事件，则 设置必要的参数，来跟踪监听回调。
     if (!listening) {
+      // 生成 _listenId
       this._listenId || (this._listenId = _.uniqueId('l'));
+      // 生成 listening 和 _listening 还有 listeningTo[id] 
       listening = _listening = listeningTo[id] = new Listening(this, obj);
     }
 
     // Bind callbacks on obj.
+    // 在obj 上绑定回调
+    // 
+    // tryCatchOn：一个try-catch保护#on函数，以防止污染全局`_listening`变量。
     var error = tryCatchOn(obj, name, callback, this);
     _listening = void 0;
 
+    // 如果有错误 就报错
     if (error) throw error;
+
+    // 没有错误
     // If the target obj is not Backbone.Events, track events manually.
+    // 如果目标 obj 不是 Backbone.Events，则手动追踪。
+    // 
+    // todo
     if (listening.interop) listening.on(name, callback);
 
     return this;
   };
 
   // The reducing API that adds a callback to the `events` object.
+  // 此函数用于 往this._events里面push进相应的事件，在 eventsApi 函数中作为 iteratee 参数调用。
+  // 
+  // 参数：
+  // events 事件，有很多情况中传入的是this._events
+  // name 自己起的名字或者之前起的名字，代表了一个事件
+  // callback 回调函数，触发事件时触发
   var onApi = function(events, name, callback, options) {
+    // 如果有回调
     if (callback) {
+      // todo
       var handlers = events[name] || (events[name] = []);
       var context = options.context, ctx = options.ctx, listening = options.listening;
       if (listening) listening.count++;
@@ -192,6 +267,7 @@
 
   // An try-catch guarded #on function, to prevent poisoning the global
   // `_listening` variable.
+  // 一个try-catch保护#on函数，以防止污染全局`_listening`变量。
   var tryCatchOn = function(obj, name, callback, context) {
     try {
       obj.on(name, callback, context);
@@ -204,8 +280,12 @@
   // callbacks with that function. If `callback` is null, removes all
   // callbacks for the event. If `name` is null, removes all bound
   // callbacks for all events.
+  // 此函数作用于删除一个或多个回调。
+  // 如果`context`为null，则使用该函数删除所有回调。 如果`callback`为null，则删除事件的所有回调。 如果`name`为null，则删除所有事件的所有绑定回调。
   Events.off = function(name, callback, context) {
+    // 当前`object`不存在`_events`(即没有绑定过事件)直接返回
     if (!this._events) return this;
+    // 调用 eventsApi 传入 offApi 作为 iteratee 解绑事件
     this._events = eventsApi(offApi, this._events, name, callback, {
       context: context,
       listeners: this._listeners
@@ -216,30 +296,44 @@
 
   // Tell this object to stop listening to either specific events ... or
   // to every object it's currently listening to.
+  // 解除 当前 object 监听的 其他对象上制定事件，或者说是所有当前监听的事件
+  // 如果 传入obj 就是解除特定对象上的事件，没有就是所有解除事件
   Events.stopListening = function(obj, name, callback) {
     var listeningTo = this._listeningTo;
+
+    // 获取当前已监听对象. 为空时直接返回. 
     if (!listeningTo) return this;
 
+    // 获取所有需要解除的事件id，如果有指定obj 则 obj 上监听的事件，负责就是获取所有正在监听的事件 id
     var ids = obj ? [obj._listenId] : _.keys(listeningTo);
+    // 循环遍历解除
     for (var i = 0; i < ids.length; i++) {
       var listening = listeningTo[ids[i]];
 
       // If listening doesn't exist, this object is not currently
       // listening to obj. Break out early.
+      // 如果 要解除的事件不在当前 object 监听列表里 ，就跳出循环
       if (!listening) break;
 
+      //todo
       listening.obj.off(name, callback, this);
+
+      // todo
       if (listening.interop) listening.off(name, callback);
     }
+    // 如果当前监听列表已经为空，则 将 this._listeningTo 设为 void 0，也就是undefined
     if (_.isEmpty(listeningTo)) this._listeningTo = void 0;
 
     return this;
   };
 
   // The reducing API that removes a callback from the `events` object.
+  // 此函数用于 往this._events里面删除相应的事件，在 eventsApi 函数中作为 iteratee 参数调用。
   var offApi = function(events, name, callback, options) {
+    // 如果没有传入要删除的事件就直接返回
     if (!events) return;
 
+    
     var context = options.context, listeners = options.listeners;
     var i = 0, names;
 

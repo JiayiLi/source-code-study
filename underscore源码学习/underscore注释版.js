@@ -7,7 +7,6 @@
 //     Object -> Array -> Collection -> Function -> Utility
 
 (function() {
-
   // Baseline setup
   // 基本设置、配置
   // --------------
@@ -131,16 +130,6 @@
     // 其实不用上面的 switch-case 语句
     // 直接执行下面的 return 函数就行了
     // 不这样做的原因是 call 比 apply 快很多    
-    // 
-    // 
-    // 
-    // 
-    // 
-    // ?????????
-    // 
-    // 
-    // 
-    // 
     // .apply 在运行前要对作为参数的数组进行一系列检验和深拷贝，.call 则没有这些步骤
     // 具体可以参考：
     // https://segmentfault.com/q/1010000007894513
