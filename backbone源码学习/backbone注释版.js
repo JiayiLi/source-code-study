@@ -40,6 +40,7 @@
 })(function(root, Backbone, _, $) {
 
   // Initial Setup
+  // 一些初始化操作
   // -------------
 
   // Save the previous value of the `Backbone` variable, so that it can be
@@ -52,7 +53,7 @@
   var slice = Array.prototype.slice;
 
   // Current version of the library. Keep in sync with `package.json`.
-  // 类库版本
+  // 版本号
   Backbone.VERSION = '1.3.3';
 
   // For Backbone's purposes, jQuery, Zepto, Ender, or My Library (kidding) owns
@@ -64,7 +65,7 @@
 
   // Runs Backbone.js in *noConflict* mode, returning the `Backbone` variable
   // to its previous owner. Returns a reference to this Backbone object.
-  // 如过全局变量已经存在 Backbone ，那么 使用此函数更换类库变量名，例子：
+  // 防止冲突变量的解决方案。如过全局变量已经存在 Backbone ，那么使用此函数更换类库变量名，例子：
   // var test = Backbone.noConflict();  
   Backbone.noConflict = function() {
     root.Backbone = previousBackbone;
@@ -83,28 +84,39 @@
   // `application/x-www-form-urlencoded` instead and will send the model in a
   // form param named `model`.
   // 对于不支持application/json编码的浏览器, 可以设置Backbone.emulateJSON = true;
-  // 将请求类型设置为application/x-www-form-urlencoded, 并将数据放置在model参数中实现兼容
+  // 将请求类型设置为application/x-www-form-urlencoded, 并将数据放置在_model参数中实现兼容
   Backbone.emulateJSON = false;
 
   // Backbone.Events
   // ---------------
-    // 自定义事件相关
+  // Backbone 事件部分
     
-    // A module that can be mixed in to *any object* in order to provide it with
-    // a custom event channel. You may bind a callback to an event with `on` or
-    // remove with `off`; `trigger`-ing an event fires all callbacks in
-    // succession.
+  // A module that can be mixed in to *any object* in order to provide it with
+  // a custom event channel. You may bind a callback to an event with `on` or
+  // remove with `off`; `trigger`-ing an event fires all callbacks in
+  // succession.
   //
   //     var object = {};
   //     _.extend(object, Backbone.Events);
   //     object.on('expand', function(){ alert('expanded'); });
   //     object.trigger('expand');
-  //
-  //  初始化为一个空对象
+  //     
+  //     
+  // Backbone的 Events 实际上就是一个观察者模式(发布订阅模式)的实现，并且巧妙的是，还可以作为mixin混入到自己写的object中，
+  // 当然，Backbone自身也用了，所以这个Events的实现是放在前面的。
+  // mixin例子：
+  //     var object = {};
+  //     _.extend(object, Backbone.Events);
+  //     object.on('expand', function(){ alert('expanded'); });
+  //     object.trigger('expand');
+  // 另外需要注意的是，由于之后需要进行对象整合，所以这里的Events对象可以理解为会被变成被调用的对象上下文。
+  //     
+  // 初始化Events为一个空对象,js中的对象是按引用传递的。
   var Events = Backbone.Events = {};
 
   // Regular expression used to split event strings.
-  // eventSplitter指定处理多个事件时, 事件名称的解析规则
+  // eventSplitter指定处理多个事件时, 事件名称的解析规则，
+  // 匹配一次或多次(至少一次)空白字符，包括空格、制表符、换页符和换行符
   var eventSplitter = /\s+/;
 
   // A private global variable to share between listeners and listenees.
@@ -114,8 +126,17 @@
   // Iterates over the standard `event, callback` (as well as the fancy multiple
   // space-separated events `"change blur", callback` and jQuery-style event
   // maps `{event: callback}`).
-  // 迭代不同的`event，callback`绑定形式：标准形式：`event, callback` ；多个空格分隔的事件形式：`"change blur", callback` 和 jQuery风格的事件地图： `{event: callback}`。
-  // 起到分流的作用。
+  // eventsApi 起到分流的作用。迭代不同的`event，callback`绑定形式：标准形式：`event, callback` ；多个空格分隔的事件形式：`"change blur", callback` 和 jQuery风格的事件地图： `{event: callback}`。
+  // 1.普通绑定：
+  // model.on("change", on_change_callback);  
+  // 2.传入一个名称，回调函数的对象
+  // model.on({ 
+  //     "change": on_change_callback,
+  //     "remove": on_remove_callback
+  // });  
+  // 3.使用空格分割的多个事件名称绑定到同一个回调函数上
+  // model.on("change remove", common_callback);  
+  // 
   // 参数：
   // iteratee 实际真正要调用的函数，做绑定iteratee = onApi , onceMap; 做解绑 iteratee = offApi; 做触发 iteratee = triggerApi
   // events 事件，有很多情况中传入的是this._events
@@ -460,7 +481,10 @@
       //处理对all事件进行监听的情况，假设A对象监听了B对象的all事件，那么所有的B对象的事件都会被触发,并且会把事件名作为第一个函数参数
       var allEvents = objEvents.all;
       if (events && allEvents) allEvents = allEvents.slice();
+
+      // 如果不是所有事件
       if (events) triggerEvents(events, args);
+      // 如果是所有事件
       if (allEvents) triggerEvents(allEvents, [name].concat(args));
     }
     return objEvents;
@@ -469,6 +493,9 @@
   // A difficult-to-believe, but optimized internal dispatch function for
   // triggering events. Tries to keep the usual cases speedy (most internal
   // Backbone events have 3 arguments).
+  // 对事件进行触发,优先进行call调用，call调用比apply调用效率更高，所以优先进行call调用
+  // 之所以用`switch`是因为大多数的回调函数需要的参数都在三个以内(包含三个).如果是小于三个的参数，就用call，否则用apply 
+  // 这里的events参数，实际上是回调函数列
   var triggerEvents = function(events, args) {
     var ev, i = -1, l = events.length, a1 = args[0], a2 = args[1], a3 = args[2];
     switch (args.length) {
@@ -476,6 +503,7 @@
       case 1: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1); return;
       case 2: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2); return;
       case 3: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2, a3); return;
+      // 因为call调用的时候是需要将参数展开的，而apply调用的时候传入一个数组即可
       default: while (++i < l) (ev = events[i]).callback.apply(ev.ctx, args); return;
     }
   };
@@ -497,9 +525,11 @@
   // Uses an optimized counter if the listenee uses Backbone.Events.
   // Otherwise, falls back to manual tracking to support events
   // library interop.
+  // 解除一个或多个回调。
   Listening.prototype.off = function(name, callback) {
     var cleanup;
     if (this.interop) {
+      // _events对象，用于保存当前对象监听的事件。
       this._events = eventsApi(offApi, this._events, name, callback, {
         context: void 0,
         listeners: void 0
@@ -513,17 +543,20 @@
   };
 
   // Cleans up memory bindings between the listener and the listenee.
+  // 清理侦听器和列表之间的内存绑定。
   Listening.prototype.cleanup = function() {
     delete this.listener._listeningTo[this.obj._listenId];
     if (!this.interop) delete this.obj._listeners[this.id];
   };
 
   // Aliases for backwards compatibility.
+  // 等价函数命名
   Events.bind   = Events.on;
   Events.unbind = Events.off;
 
   // Allow the `Backbone` object to serve as a global event bus, for folks who
   // want global "pubsub" in a convenient place.
+  // 这样就可以让Backbone全局拥有事件能力
   _.extend(Backbone, Events);
 
   // Backbone.Model
