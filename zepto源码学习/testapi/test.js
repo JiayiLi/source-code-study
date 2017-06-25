@@ -36,16 +36,6 @@
 // 	console.log(object instanceof  hZ);
 // return object instanceof  hZ
 // }
-
-
-// var t = [1,2,3,1,3];
-// var c = function(t){
-// 	return t.filter(function(value,idx){
-// 		return t.indexOf(value) == idx;
-// 	})
-// }
-// console.log(c(t));
-// 
 // 
 
 
@@ -58,7 +48,11 @@ var hei = {
 var c = [];
 c.prototype = hei;
 
-console.log(c);
+
+
+console.log($("li").first());
+console.log($.fn);
+console.log($.zepto.Z.prototype);
 
 
 // console.log(window);

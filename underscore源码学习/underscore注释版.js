@@ -7,6 +7,7 @@
 //     Object -> Array -> Collection -> Function -> Utility
 
 (function() {
+
   // Baseline setup
   // 基本设置、配置
   // --------------

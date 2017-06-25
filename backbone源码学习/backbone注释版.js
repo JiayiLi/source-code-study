@@ -298,6 +298,7 @@
   // to every object it's currently listening to.
   // 解除 当前 object 监听的 其他对象上制定事件，或者说是所有当前监听的事件
   // 如果 传入obj 就是解除特定对象上的事件，没有就是所有解除事件
+  // todo
   Events.stopListening = function(obj, name, callback) {
     var listeningTo = this._listeningTo;
 
@@ -333,11 +334,13 @@
     // 如果没有传入要删除的事件就直接返回
     if (!events) return;
 
-    
+
     var context = options.context, listeners = options.listeners;
     var i = 0, names;
 
     // Delete all event listeners and "drop" events.
+    // todo
+    // 如果没有name，则删除所有监听自己的listeners，同时删除事件
     if (!name && !context && !callback) {
       for (names = _.keys(listeners); i < names.length; i++) {
         listeners[names[i]].cleanup();
@@ -345,18 +348,25 @@
       return;
     }
 
+    // 获取要删除的事件名称
     names = name ? [name] : _.keys(events);
     for (; i < names.length; i++) {
+      // 获取事件名称
       name = names[i];
+      // 获取保存此事件的数组对象
       var handlers = events[name];
 
       // Bail out if there are no events stored.
+      // 保存此事件的数组对象为空时就跳出循环
       if (!handlers) break;
 
       // Find any remaining events.
+      // 找到剩下的事件
+      // 有可能绑定有多个事件
       var remaining = [];
       for (var j = 0; j < handlers.length; j++) {
         var handler = handlers[j];
+        //这里要严格对上下文进行判断,上下文不等不能删除
         if (
           callback && callback !== handler.callback &&
             callback !== handler.callback._callback ||
@@ -364,12 +374,15 @@
         ) {
           remaining.push(handler);
         } else {
+          // 剩下的就是要删除的事件
+          // 解除对于事件的监听
           var listening = handler.listening;
           if (listening) listening.off(name, callback);
         }
       }
 
       // Replace events if there are any remaining.  Otherwise, clean up.
+      // 如果有其余的事件，也就是非目标删除事件，就替代，负责就直接全部删除
       if (remaining.length) {
         events[name] = remaining;
       } else {
@@ -384,17 +397,23 @@
   // the callback is invoked, its listener will be removed. If multiple events
   // are passed in using the space-separated syntax, the handler will fire
   // once for each event, not once for a combination of all events.
+  // 绑定事件只能触发一次。在第一次调用回调之后，它的监听器将被删除。如果使用空格分隔的语法传递多个事件，则处理程序将针对每个事件触发一次，而不是一次所有事件的组合。
   Events.once = function(name, callback, context) {
     // Map the event into a `{event: once}` object.
+    // 循环每个事件把它添加到{event: once}对象中
     var events = eventsApi(onceMap, {}, name, callback, _.bind(this.off, this));
     if (typeof name === 'string' && context == null) callback = void 0;
+    // 调用的是this.on 方法
     return this.on(events, callback, context);
   };
 
   // Inversion-of-control versions of `once`.
+  // once的反转控制版本
   Events.listenToOnce = function(obj, name, callback) {
     // Map the event into a `{event: once}` object.
+    // 循环每个事件把它添加到{event: once}对象中
     var events = eventsApi(onceMap, {}, name, callback, _.bind(this.stopListening, this, obj));
+    // 调用listenTo方法
     return this.listenTo(obj, events);
   };
 
@@ -415,21 +434,30 @@
   // passed the same arguments as `trigger` is, apart from the event name
   // (unless you're listening on `"all"`, which will cause your callback to
   // receive the true name of the event as the first argument).
+  // trigger一个或者多个事件，并触发所有的回调函数
   Events.trigger = function(name) {
+    // 每个Events对象内部有一个_events对象，用于保存当前对象监听的事件。
+    // 如果没有监听事件，则直接返回
     if (!this._events) return this;
 
+    // 参数长度
     var length = Math.max(0, arguments.length - 1);
+    // 新建一个数组
     var args = Array(length);
+    // 在数组args中保存传递进来的除了第一个之外的其余参数,提取出来的参数最终回传递给下方定义的函数 triggerApi
     for (var i = 0; i < length; i++) args[i] = arguments[i + 1];
+
 
     eventsApi(triggerApi, this._events, name, void 0, args);
     return this;
   };
 
   // Handles triggering the appropriate event callbacks.
+  // 处理触发适当的事件回调。
   var triggerApi = function(objEvents, name, callback, args) {
     if (objEvents) {
       var events = objEvents[name];
+      //处理对all事件进行监听的情况，假设A对象监听了B对象的all事件，那么所有的B对象的事件都会被触发,并且会把事件名作为第一个函数参数
       var allEvents = objEvents.all;
       if (events && allEvents) allEvents = allEvents.slice();
       if (events) triggerEvents(events, args);
