@@ -187,13 +187,14 @@
   Events.on = function(name, callback, context) {
     // this._events 保存所有监听事件
     // 调用 onApi 用来绑定事件
+    // eventsApi函数参数(iteratee, events, name, callback, opts)
     this._events = eventsApi(onApi, this._events || {}, name, callback, {
       context: context,
       ctx: this,
       listening: _listening
     });
 
-    // 如果有 _listening
+    // listening用于监听对象。如果有 _listening
     if (_listening) {
       // 定义变量 listener，赋值 this._listeners ；
       var listeners = this._listeners || (this._listeners = {});
@@ -218,6 +219,10 @@
   // 
   // “on”的控制反转版本。
   // 让 object 监听 另一个（other）对象上的一个特定事件。跟踪它正在监听的内容，以便以后解除绑定。
+  // 比如，B对象上面发生b事件的时候，通知A调用回调函数。
+  // A.listenTo(B, “b”, callback);
+  // 当然，实际上这个用on来写也是可行的
+  // B.on(“b”, callback, A);
   // 
   // 这个函数的作用就是构建_listeningTo的一个过程。
   // _listeningTo:当前对象所监听的对象。对象里面是一个或多个以被监听对象的_listenId为名字的对象。每一个对象结构如下：
