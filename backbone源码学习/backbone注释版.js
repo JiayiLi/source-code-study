@@ -176,12 +176,17 @@
 
   // Bind an event to a `callback` function. Passing `"all"` will bind
   // the callback to all events fired.
-  // 将一个事件绑定到 `callback` 函数上。事件触发时执行回调函数`callback`。
+  // 绑定事件。将一个事件绑定到 `callback` 函数上。事件触发时执行回调函数`callback`。
   // 典型调用方式是`object.on('name', callback, context)`.
-  // `name`是监听的事件名, `callback`是事件触发时的回调函数, `context`是回调函数上下文(未指定时就默认为`object`).
-  // 如果传递参数 `"all"，那么将会把这个事件绑定到所有的回调函数上。
+  // `name`是监听的事件名, `callback`是事件触发时的回调函数, `context`是回调函数上下文，即回调函数中的This(未指定时就默认为当前`object`).
+  // 如果传递参数 `"all"，任何事件的发生都会触发该回调函数。回调函数的第一个参数会传递该事件的名称。举个例子，将一个对象的所有事件代理到另一对象：
+  // 例子：
+  // proxy.on("all", function(eventName) {
+  //   object.trigger(eventName);
+  // });
   Events.on = function(name, callback, context) {
     // this._events 保存所有监听事件
+    // 调用 onApi 用来绑定事件
     this._events = eventsApi(onApi, this._events || {}, name, callback, {
       context: context,
       ctx: this,
