@@ -194,7 +194,9 @@
       listening: _listening
     });
 
-    // listening用于监听对象。如果有 _listening
+    // ?????
+    // 如果  object 正在监听某某对象的话???? 如果是通过listenTo 监听调用的。
+    // listening用于监听对象。
     if (_listening) {
       // 定义变量 listener，赋值 this._listeners ；
       var listeners = this._listeners || (this._listeners = {});
@@ -220,7 +222,7 @@
   // “on”的控制反转版本。
   // 让 object 监听 另一个（other）对象上的一个特定事件。跟踪它正在监听的内容，以便以后解除绑定。
   // 比如，B对象上面发生b事件的时候，通知A调用回调函数。
-  // A.listenTo(B, “b”, callback);
+  // 例子1:A.listenTo(B, “b”, callback);
   // 当然，实际上这个用on来写也是可行的
   // B.on(“b”, callback, A);
   // 
@@ -240,17 +242,21 @@
     if (!obj) return this;
 
     // 定义被监听对象的索引值 id 为当前 obj._listenId 如果没有 obj._listenId，则通过_.uniqueId('l') 生成唯一 id 赋值
+    // _.uniqueId:为需要的客户端模型或DOM元素生成一个全局唯一的id,这个id以l开头.
     var id = obj._listenId || (obj._listenId = _.uniqueId('l'));
 
-    // 定义变量 listeningTo ，赋值为 this._listeningTo 或者 {}
+    // 定义变量 listeningTo 存放监听的对象的信息，相当于例子1种的b，赋值为 this._listeningTo 或者 {}
+    // this._listeningTo存放当前对象的所有的监听对象事件,按照键值对存储
     var listeningTo = this._listeningTo || (this._listeningTo = {});
+
+    // 正在监听的对象的id，例子1中的A的listening正在监听 listeningTo[id]。
     var listening = _listening = listeningTo[id];
 
     // This object is not listening to any other events on `obj` yet.
     // Setup the necessary references to track the listening callbacks.
     // 如果当前 object 还没有监听 obj 上的任何其他事件，则 设置必要的参数，来跟踪监听回调。
     if (!listening) {
-      // 生成 _listenId
+      // 生成 例子中的B 的id: _listenId
       this._listenId || (this._listenId = _.uniqueId('l'));
       // 生成 listening 和 _listening 还有 listeningTo[id] 
       listening = _listening = listeningTo[id] = new Listening(this, obj);
