@@ -1,8 +1,6 @@
-var compiled = _.template("hello: <%= name %>");
-var t = compiled({name: 'moe'});
-console.log(t);
-
-
+var func = function(greeting,haha){ console.log(haha);return greeting + ': ' + this.name };
+func = _.bind(func, {name: 'moe'}, 'hi');
+console.log(func("huhu"));
 
 
 

@@ -341,31 +341,43 @@
   // Tell this object to stop listening to either specific events ... or
   // to every object it's currently listening to.
   // 解除 当前 object 监听的 其他对象上制定事件，或者说是所有当前监听的事件
-  // 如果 传入obj 就是解除特定对象上的事件，没有就是所有解除事件
-  // todo
+  // 如果 传入被监听对象 obj 就是解除特定对象上的事件，没有就是解除所有事件
+  // Tip::
+  // _listeningTo:当前对象所监听的对象。对象里面是一个或多个以被监听对象的_listenId为名字的对象。每一个对象结构如下：
+  // {
+  //     count: 5, // 监听了几个事件
+  //     id: 13, // 监听方的id
+  //     listeningTo: Object, // 自身相关的一些信息
+  //     obj: child, // 被监听的对象
+  //     objId: "12" // 被监听对象id
+  // }
   Events.stopListening = function(obj, name, callback) {
+    // 找到 正在监听的对象
     var listeningTo = this._listeningTo;
 
     // 获取当前已监听对象. 为空时直接返回. 
     if (!listeningTo) return this;
 
-    // 获取所有需要解除的事件id，如果有指定obj 则 obj 上监听的事件，负责就是获取所有正在监听的事件 id
+    // 获取所有需要解除的事件id，如果有指定obj 则 obj 上监听的事件，否则就是获取所有正在监听的事件id集合
     var ids = obj ? [obj._listenId] : _.keys(listeningTo);
     // 循环遍历解除
     for (var i = 0; i < ids.length; i++) {
+      // 找到正在监听这个事件的 object,也就是监听方，将监听事件从监听方Object解除
       var listening = listeningTo[ids[i]];
 
       // If listening doesn't exist, this object is not currently
       // listening to obj. Break out early.
-      // 如果 要解除的事件不在当前 object 监听列表里 ，就跳出循环
+      // 如果没有监听方，就跳出循环
       if (!listening) break;
 
-      //todo
+      //listening.obj 获得被监听对象，接触事件绑定。
       listening.obj.off(name, callback, this);
 
-      // todo
+      // todo  ????
+      // 如果 设置了 手动追踪，则手动解绑
       if (listening.interop) listening.off(name, callback);
     }
+
     // 如果当前监听列表已经为空，则 将 this._listeningTo 设为 void 0，也就是undefined
     if (_.isEmpty(listeningTo)) this._listeningTo = void 0;
 
@@ -378,13 +390,12 @@
     // 如果没有传入要删除的事件就直接返回
     if (!events) return;
 
-
+    // 获得上下文，和监听方
     var context = options.context, listeners = options.listeners;
     var i = 0, names;
 
     // Delete all event listeners and "drop" events.
-    // todo
-    // 如果没有name，则删除所有监听自己的listeners，同时删除事件
+    // 如果没有name，没有上下文，没有回调函数，则删除所有监听方，同时删除事件
     if (!name && !context && !callback) {
       for (names = _.keys(listeners); i < names.length; i++) {
         listeners[names[i]].cleanup();
@@ -392,12 +403,12 @@
       return;
     }
 
-    // 获取要删除的事件名称
+    // 获取要删除的事件名称，如果没有名称，就获取所有事件
     names = name ? [name] : _.keys(events);
     for (; i < names.length; i++) {
       // 获取事件名称
       name = names[i];
-      // 获取保存此事件的数组对象
+      // 获取保存此事件的数组对象，比如要删除click 
       var handlers = events[name];
 
       // Bail out if there are no events stored.
@@ -405,12 +416,11 @@
       if (!handlers) break;
 
       // Find any remaining events.
-      // 找到剩下的事件
-      // 有可能绑定有多个事件
+      // remaining 用于保存其他剩下的事件。即非click事件。
       var remaining = [];
       for (var j = 0; j < handlers.length; j++) {
         var handler = handlers[j];
-        //这里要严格对上下文进行判断,上下文不等不能删除
+        //这里要严格对上下文进行判断,上下文不等不能删除，算是其他事件，push到remaining中
         if (
           callback && callback !== handler.callback &&
             callback !== handler.callback._callback ||
@@ -419,14 +429,14 @@
           remaining.push(handler);
         } else {
           // 剩下的就是要删除的事件
-          // 解除对于事件的监听
+          // 获得监听方，然后解除对于事件的监听
           var listening = handler.listening;
           if (listening) listening.off(name, callback);
         }
       }
 
       // Replace events if there are any remaining.  Otherwise, clean up.
-      // 如果有其余的事件，也就是非目标删除事件，就替代，负责就直接全部删除
+      // 如果有其余的事件，也就是非目标删除事件，就重新添加到events，负责就直接全部删除
       if (remaining.length) {
         events[name] = remaining;
       } else {
@@ -445,9 +455,15 @@
   Events.once = function(name, callback, context) {
     // Map the event into a `{event: once}` object.
     // 循环每个事件把它添加到{event: once}对象中
+    // 调用onceMap处理事件， _.bind(this.off, this)将作为onceMap最后一个参数传入offer
     var events = eventsApi(onceMap, {}, name, callback, _.bind(this.off, this));
+
+    // ????
+    // 如果名字是字符串并且上下文为空，则回调函数置为空，
+    // 在onceMap中,在事件被调用一次之后会解除上下文，也就是 context 为空，这个时候表示已经调用过一次了，将callback置为undefined
     if (typeof name === 'string' && context == null) callback = void 0;
-    // 调用的是this.on 方法
+
+    // 调用的是on方法 绑定事件
     return this.on(events, callback, context);
   };
 
@@ -456,6 +472,13 @@
   Events.listenToOnce = function(obj, name, callback) {
     // Map the event into a `{event: once}` object.
     // 循环每个事件把它添加到{event: once}对象中
+    // 调用onceMap处理事件，_.bind(this.stopListening, this, obj)将作为onceMap最后一个参数传入offer
+    // underscore:_.bind(function, object, *arguments) 绑定函数 function 到对象 object 上, 也就是无论何时调用函数, 函数里的 this 都指向这个 object.任意可选参数 arguments 可以传递给函数 function .
+    // underscore:_.bind 例子：
+    // var func = function(greeting){ return greeting + ': ' + this.name };
+    // func = _.bind(func, {name: 'moe'}, 'hi');
+    // func();
+    // => 'hi: moe' 
     var events = eventsApi(onceMap, {}, name, callback, _.bind(this.stopListening, this, obj));
     // 调用listenTo方法
     return this.listenTo(obj, events);
@@ -463,12 +486,20 @@
 
   // Reduces the event callbacks into a map of `{event: onceWrapper}`.
   // `offer` unbinds the `onceWrapper` after it has been called.
+  // 将事件回调减少为“{event：onceWrapper}”的映射。“offer”在被调用后解除了“onceWrapper”的绑定。
+  // iteratee(events, name, callback, opts);
   var onceMap = function(map, name, callback, offer) {
+    // 如果有callback,表示还没有调用过
     if (callback) {
+      // underscore:_.once(function) 创建一个只能调用一次的函数。重复调用改进的方法也没有效果，只会返回第一次执行时的结果。作为初始化函数使用时非常有用, 不用再设一个boolean值来检查是否已经初始化完成.
       var once = map[name] = _.once(function() {
+        // name,once 会作为_.bind(function, object, *arguments)中function的参数
+        // 执行this.off或者this.stopListening，解除绑定
         offer(name, once);
+        // 调用回调函数
         callback.apply(this, arguments);
       });
+      //????
       once._callback = callback;
     }
     return map;
@@ -480,7 +511,7 @@
   // receive the true name of the event as the first argument).
   // trigger一个或者多个事件，并触发所有的回调函数
   Events.trigger = function(name) {
-    // 每个Events对象内部有一个_events对象，用于保存当前对象监听的事件。
+    // 每个Events对象内部有一个_events对象，保存某一个事件的回调函数队列。
     // 如果没有监听事件，则直接返回
     if (!this._events) return this;
 
@@ -491,7 +522,7 @@
     // 在数组args中保存传递进来的除了第一个之外的其余参数,提取出来的参数最终回传递给下方定义的函数 triggerApi
     for (var i = 0; i < length; i++) args[i] = arguments[i + 1];
 
-
+    // 调用triggerApi
     eventsApi(triggerApi, this._events, name, void 0, args);
     return this;
   };
@@ -533,6 +564,7 @@
 
   // A listening class that tracks and cleans up memory bindings
   // when all callbacks have been offed.
+  // 实例
   var Listening = function(listener, obj) {
     this.id = listener._listenId;
     this.listener = listener;
