@@ -564,41 +564,50 @@
 
   // A listening class that tracks and cleans up memory bindings
   // when all callbacks have been offed.
-  // 实例
+  // 实例,保存当前对象所监听的对象
   var Listening = function(listener, obj) {
-    this.id = listener._listenId;
-    this.listener = listener;
-    this.obj = obj;
+    this.id = listener._listenId; //监听方的id
+    this.listener = listener; // 监听方
+    this.obj = obj; // 被监听的对象
     this.interop = true;
-    this.count = 0;
-    this._events = void 0;
+    this.count = 0;   //监听了几个事件
+    this._events = void 0; // 监听事件的回调函数序列
   };
 
+  // Listening的实例可以有 on 方法绑定事件
   Listening.prototype.on = Events.on;
 
   // Offs a callback (or several).
   // Uses an optimized counter if the listenee uses Backbone.Events.
   // Otherwise, falls back to manual tracking to support events
   // library interop.
-  // 解除一个或多个回调。
+  // Listening的实例涌来解除正在监听的一个或多个回调。
   Listening.prototype.off = function(name, callback) {
     var cleanup;
+    // 初始化this.interop都为true
+    // ??????
     if (this.interop) {
       // _events对象，用于保存当前对象监听的事件。
       this._events = eventsApi(offApi, this._events, name, callback, {
         context: void 0,
         listeners: void 0
       });
+      // ????
+      // this._events中有回调函数，cleanup 为false
+      // this._events中没有回调函数，cleanup 为true
       cleanup = !this._events;
     } else {
       this.count--;
+      // 当有正在监听的事件时，cleanup 为false
+      // 当没有正在监听的事件时，cleanup 为true
       cleanup = this.count === 0;
     }
+    // 当没有回调或者正在监听的事件时，解除监听方和事件序列的绑定关系。
     if (cleanup) this.cleanup();
   };
 
   // Cleans up memory bindings between the listener and the listenee.
-  // 清理侦听器和列表之间的内存绑定。
+  // 清理监听方和事件列表之间的内存绑定。
   Listening.prototype.cleanup = function() {
     delete this.listener._listeningTo[this.obj._listenId];
     if (!this.interop) delete this.obj._listeners[this.id];
@@ -611,19 +620,27 @@
 
   // Allow the `Backbone` object to serve as a global event bus, for folks who
   // want global "pubsub" in a convenient place.
-  // 这样就可以让Backbone全局拥有事件能力
+  // 将Events的特性全部extend到Backbone, 即Backbone也可以做Backbone.on/Backbone.trigger这样的操作.
+  // underscore:_.extend(destination, *sources) 复制source对象中的所有属性覆盖到destination对象上，并且返回 destination 对象. 复制是按顺序的, 所以后面的对象属性会把前面的对象属性覆盖掉(如果有重复).
   _.extend(Backbone, Events);
 
+
+  // 至此,Events部分结束,接下来是Model部分
   // Backbone.Model
   // --------------
+  // 每当一个模型建立，一个 cid 便会被自动创建
+  // 实际上，Model 函数内的语句顺序也是很重要的，这个不能随便打乱顺序(初始化过程)
+
 
   // Backbone **Models** are the basic data object in the framework --
   // frequently representing a row in a table in a database on your server.
   // A discrete chunk of data and a bunch of useful, related methods for
   // performing computations and transformations on that data.
+  // Backbone**模型**是框架中的基本数据对象 - 通常表示服务器上数据库中的表中的一行。 一组离散的数据和一系列有用的相关方法，用于对该数据执行计算和转换。
 
   // Create a new model with the specified attributes. A client id (`cid`)
   // is automatically generated and assigned for you.
+  // 创建具有指定属性的新model。 客户端ID（`cid`）自动生成并分配给您。
   var Model = Backbone.Model = function(attributes, options) {
     var attrs = attributes || {};
     options || (options = {});
