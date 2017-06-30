@@ -645,6 +645,7 @@
     var attrs = attributes || {};
     options || (options = {});
     this.preinitialize.apply(this, arguments);
+    // Model的唯一的id，这和自己传入的id并不一样，虽然我们也要保证id是唯一的
     this.cid = _.uniqueId(this.cidPrefix);
     this.attributes = {};
     if (options.collection) this.collection = options.collection;
@@ -652,63 +653,78 @@
     var defaults = _.result(this, 'defaults');
     attrs = _.defaults(_.extend({}, defaults, attrs), defaults);
     this.set(attrs, options);
+    // 存储历史变化记录
     this.changed = {};
+    // 这个initialize也是空的，给初始化之后调用
     this.initialize.apply(this, arguments);
   };
 
   // Attach all inheritable methods to the Model prototype.
+  // 调用underscore的方法，对Model的原型属性进行扩充
   _.extend(Model.prototype, Events, {
 
     // A hash of attributes whose current and previous value differ.
+    // 存储当前值和上一个值不同的属性的哈希值。
     changed: null,
 
     // The value returned during the last failed validation.
+    // 上次验证失败时返回的值。
     validationError: null,
 
     // The default name for the JSON `id` attribute is `"id"`. MongoDB and
     // CouchDB users may want to set this to `"_id"`.
+    // JSON`id`属性的默认名称为“”id“`。 MongoDB和CouchDB用户可能希望将其设置为“_id”。
     idAttribute: 'id',
 
     // The prefix is used to create the client id which is used to identify models locally.
     // You may want to override this if you're experiencing name clashes with model ids.
+    // 该前缀用于创建用于在本地识别模型的客户端标识。如果你遇到名称与模型ID的冲突，可能需要重写该名称。
     cidPrefix: 'c',
 
     // preinitialize is an empty function by default. You can override it with a function
     // or object.  preinitialize will run before any instantiation logic is run in the Model.
+    // preinitialize默认为空函数。您可以使用函数或对象覆盖它。在模型中运行任何实例逻辑之前，preinitialize将运行。
     preinitialize: function(){},
 
     // Initialize is an empty function by default. Override it with your own
     // initialization logic.
+    // 默认情况下，Initialize是一个空的函数。用自己的初始化逻辑覆盖它。
     initialize: function(){},
 
     // Return a copy of the model's `attributes` object.
+    // 返回模型的“attributes”对象的副本。
     toJSON: function(options) {
       return _.clone(this.attributes);
     },
 
     // Proxy `Backbone.sync` by default -- but override this if you need
     // custom syncing semantics for *this* particular model.
+    // 默认情况下，代理`Backbone.sync`，但是如果需要* this *特定模型的自定义同步语义，则重写此代码。
     sync: function() {
       return Backbone.sync.apply(this, arguments);
     },
 
     // Get the value of an attribute.
+    // 获得属性值
     get: function(attr) {
       return this.attributes[attr];
     },
 
     // Get the HTML-escaped value of an attribute.
+    // 获取属性的HTML转义值。
     escape: function(attr) {
       return _.escape(this.get(attr));
     },
 
     // Returns `true` if the attribute contains a value that is not null
     // or undefined.
+    // 如果属性包含不为null或未定义的值，则返回“true”。
     has: function(attr) {
       return this.get(attr) != null;
     },
 
     // Special-cased proxy to underscore's `_.matches` method.
+    // 特殊情况下代理 underscore's `_.matches` 方法
     matches: function(attrs) {
       return !!_.iteratee(attrs, this)(this.attributes);
     },
@@ -716,6 +732,7 @@
     // Set a hash of model attributes on the object, firing `"change"`. This is
     // the core primitive operation of a model, updating the data and notifying
     // anyone who needs to know about the change in state. The heart of the beast.
+    // 在对象上设置模型属性的哈希，触发“”change“`。 这是模型的核心原始操作，更新数据并通知任何需要了解状态变化的人。
     set: function(key, val, options) {
       if (key == null) return this;
 
