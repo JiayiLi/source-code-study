@@ -789,12 +789,17 @@
       var silent     = options.silent;
       // 方便触发事件的时候使用
       var changes    = [];
+
       // 适用于嵌套更改操作
       var changing   = this._changing;
       // 将 this._changing 赋值给changing，然后再重新定义为 true
       this._changing = true;
+      // 初次 set 时 changing 为 undefined 而 this.changing 为 true
+
 
       //适用于嵌套更改操作
+      // 初次set时会进入此判断
+      // 如果是初次 set，将当前的 attributes 保存到 this._previousAttributes，同时将 this.changed 置为 {}，用来后续判断哪些属性发生了变化。
       if (!changing) {
         // 历史版本变量，也就是这次set之前这个model中有哪些键值对
         this._previousAttributes = _.clone(this.attributes);
@@ -828,8 +833,8 @@
           delete changed[attr];
         }
 
-        // 如果unset属性被设置为删除，则删除该数据属性，不然负属于更新，将该属性赋值为新值
         // 判断了到底是删除还是更新
+        // 判断 options 中是否有 {unset: true} 的设置，若有，则把 this.attributes 中 attrs 里指定的所有 key 都删除，不然属于更新，将该属性赋值为新值
         unset ? delete current[attr] : current[attr] = val;
       }
 
@@ -838,10 +843,11 @@
       if (this.idAttribute in attrs) this.id = this.get(this.idAttribute);
 
       // Trigger all relevant attribute changes.
-      // 如果不是静默改变就可以触发change函数
-      // 对每一个属性的更改都触发相应的事件,事件名采用 change:AttrName 格式
+      // 判断 options 中是否有 {silent: true} 的设置，若没有，则分别触发 changes 数组中的一个 key 对应的 change 事件，对每一个属性的更改都触发相应的事件,事件名采用 change:AttrName 格式,同时 this._pending = options（后续步骤使用）
       if (!silent) {
+        // 如果有要change的属性，this._pending 赋值为options
         if (changes.length) this._pending = options;
+        // 循环触发事件
         for (var i = 0; i < changes.length; i++) {
           this.trigger('change:' + changes[i], this, current[changes[i]], options);
         }
@@ -849,9 +855,19 @@
 
       // You might be wondering why there's a `while` loop here. Changes can
       // be recursively nested within `"change"` events.
-      // while循环用于使得变化可以递归嵌套`“change”`事件。
+      // 判断 changing 状态位是否为 true，若是则返回 this, 这一步主要是考虑到上面 !silent 判断中触发的 change 事件会再次导致 set 方法的调用，但是在后续的 set 调用中，由于 this.changing 已经设为 true， changing = this.changing 也为 true， 所以后续 set 方法走到这一步就会结束。
       if (changing) return this;
-      // 如果不是静默改变就????
+
+      // ??????
+      // 判断 options.silent 是否为 true，若不是则将 this.pending 置为 false，同时触发 change 事件，并不断循环，直到 this.pending 为 false 为止
+      // 
+      // _pending:https://github.com/jashkenas/backbone/issues/2846
+      // 
+      // 如果有更改事件的监听器更新多个属性，则不会调用所有set的函数。while循环处理1个监听器调用多次的边缘情况，而不是多个监听器，每个调用set一次。例子：
+      // model.on('change:a', function() {
+      //   model.set({b: true});
+      //   model.set({b: true});
+      // });
       if (!silent) {
         while (this._pending) {
           options = this._pending;
@@ -859,6 +875,7 @@
           this.trigger('change', this, options);
         }
       }
+      // 将 this.changing 和 this.pending 设为 false，返回 this，结束
       this._pending = false;
       this._changing = false;
       return this;
@@ -866,13 +883,13 @@
 
     // Remove an attribute from the model, firing `"change"`. `unset` is a noop
     // if the attribute doesn't exist.
-    // 从模型中删除一个属性，触发“change”事件。如果属性不存在,?????
+    // 从模型中删除一个属性，触发“change”事件。unset 设置为 true,为删除操作。
     unset: function(attr, options) {
       return this.set(attr, void 0, _.extend({}, options, {unset: true}));
     },
 
     // Clear all attributes on the model, firing `"change"`.
-    // 清除所有模型上的所有属性，触发"change"事件
+    // 清除所有模型上的所有属性，触发"change"事件，unset 设置为 true,为删除操作。
     clear: function(options) {
       var attrs = {};
       for (var key in this.attributes) attrs[key] = void 0;
@@ -882,8 +899,17 @@
     // Determine if the model has changed since the last `"change"` event.
     // If you specify an attribute name, determine if that attribute has changed.
     // 确定最近的一次 “change” 事件 触发了 model 变化。
+    // 
+    // underscore _.isEmpty(object)方法:如果object 不包含任何值(没有可枚举的属性)，返回true。 对于字符串和类数组（array-like）对象，如果length属性为0，那么_.isEmpty检查返回true。
+    // _.isEmpty([1, 2, 3]);
+    // => false
+    // _.isEmpty({});
+    // => true
     hasChanged: function(attr) {
       if (attr == null) return !_.isEmpty(this.changed);
+      // underscore _.has(object, key) 方法:对象是否包含给定的键吗？等同于object.hasOwnProperty(key)，但是使用hasOwnProperty 函数的一个安全引用，以防意外覆盖。
+      // _.has({a: 1, b: 2, c: 3}, "b");
+      // => true
       return _.has(this.changed, attr);
     },
 
@@ -932,41 +958,59 @@
     fetch: function(options) {
       options = _.extend({parse: true}, options);
       var model = this;
+      // 在options中可以指定获取数据成功后的自定义回调函数
       var success = options.success;
+      // 当获取数据成功后填充数据并调用自定义成功回调函数
       options.success = function(resp) {
+        // 通过parse方法将服务器返回的数据进行转换
         var serverAttrs = options.parse ? model.parse(resp, options) : resp;
+        // 通过set方法将转换后的数据填充到模型中, 因此可能会触发change事件(当数据发生变化时)
+        // 如果填充数据时验证失败, 则不会调用自定义success回调函数
         if (!model.set(serverAttrs, options)) return false;
+        // 调用自定义的success回调函数
         if (success) success.call(options.context, model, resp, options);
         model.trigger('sync', model, resp, options);
       };
+      // 请求发生错误时通过wrapError处理error事件
       wrapError(this, options);
+      // 调用sync方法从服务器获取数据
       return this.sync('read', this, options);
     },
 
     // Set a hash of model attributes, and sync the model to the server.
     // If the server returns an attributes hash that differs, the model's
     // state will be `set` again.
-    // 设置属性的 哈希指，并将模型同步到服务器，如果服务器返回不同的属性哈希，则模型的状态将再次设置。
+    // 保存模型中的数据到服务器。设置属性的 哈希指，并将模型同步到服务器，如果服务器返回不同的属性哈希，则模型的状态将再次设置。
     save: function(key, val, options) {
       // Handle both `"key", value` and `{key: value}` -style arguments.
       // 处理 key,value 和 {key:value} 两种形式的参数
+      // 
+      // attrs存储需要保存到服务器的数据对象
       var attrs;
       if (key == null || typeof key === 'object') {
+        // 如果key是一个对象, 则认为是通过对象方式设置
+        // 此时第二个参数被认为是options
         attrs = key;
         options = val;
       } else {
+        // 如果是通过key: value形式设置单个属性, 则直接设置attrs
         (attrs = {})[key] = val;
       }
 
       options = _.extend({validate: true, parse: true}, options);
+
+      // 如果在options中设置了wait选项, 则被改变的数据将会被提前验证, 且服务器没有响应新数据(或响应失败)时, 本地数据会被还原为修改前的状态
+      // 如果没有设置wait选项, 则无论服务器是否设置成功, 本地数据均会被修改为最新状态
       var wait = options.wait;
 
       // If we're not waiting and attributes exist, save acts as
       // `set(attr).save(null, opts)` with validation. Otherwise, check if
       // the model will be valid when the attributes, if any, are set.
-      // 如果我们不等待并且属性存在，则保存以“set（attr）.save（null，opts）”作为验证。 否则，当设置属性（如果有）时，检查模型是否有效。
+      // 未设置 wait 选项，将修改过最新的数据保存到模型中, 便于在sync方法中获取模型数据保存到服务器
       if (attrs && !wait) {
+        // 如果set失败，则返回false
         if (!this.set(attrs, options)) return false;
+      // 设置了 wait 选项，对需要保存的数据提前进行验证
       } else if (!this._validate(attrs, options)) {
         return false;
       }
@@ -977,28 +1021,37 @@
       var model = this;
       var success = options.success;
       var attributes = this.attributes;
+      // 服务器响应成功后执行success
       options.success = function(resp) {
         // Ensure attributes are restored during synchronous saves.
         // 确保在同步保存期间还原属性。
         model.attributes = attributes;
         var serverAttrs = options.parse ? model.parse(resp, options) : resp;
+        // 如果使用了wait参数, 则优先将修改后的数据状态直接设置到模型
         if (wait) serverAttrs = _.extend({}, attrs, serverAttrs);
+        // 将最新的数据状态设置到模型中
+        // 如果调用set方法时验证失败, 则不会调用自定义的success回调函数
         if (serverAttrs && !model.set(serverAttrs, options)) return false;
+        // 调用响应成功后自定义的success回调函数
         if (success) success.call(options.context, model, resp, options);
+        // 触发sync事件
         model.trigger('sync', model, resp, options);
       };
+      // 请求发生错误时通过wrapError处理error事件
       wrapError(this, options);
 
       // Set temporary attributes if `{wait: true}` to properly find new ids.
       // 如果`{wait：true}`正确找到新的id，则设置临时属性。
       if (attrs && wait) this.attributes = _.extend({}, attributes, attrs);
-
+      // 将模型中的数据保存到服务器
+      // 如果当前模型是一个新建的模型(没有id), 则使用create方法(新增), 否则认为是update方法(修改)
       var method = this.isNew() ? 'create' : (options.patch ? 'patch' : 'update');
       if (method === 'patch' && !options.attrs) options.attrs = attrs;
       var xhr = this.sync(method, this, options);
 
       // Restore attributes.
       // 还原属性。
+      // 此时保存的请求还没有得到响应, 因此如果响应失败, 模型中将保持修改前的状态, 如果服务器响应成功, 则会在success中设置模型中的数据为最新状态
       this.attributes = attributes;
 
       return xhr;
@@ -1007,7 +1060,10 @@
     // Destroy this model on the server if it was already persisted.
     // Optimistically removes the model from its collection, if it has one.
     // If `wait: true` is passed, waits for the server to respond before removal.
-    // 如果服务器已经持久化，则在服务器上销毁此模型。如果有模型，则可以从其集合中删除该模型。 如果“wait：true”被传递，请等待服务器在删除之前进行响应。
+    // 如果服务器已经持久化，则在服务器上销毁此模型。如果有模型，则可以从Collection集合中删除该模型。 如果设置了“wait：true”，请等待服务器成功响应再删除。
+    // 
+    // 如果模型是在客户端新建的, 则直接从客户端删除
+    // 如果模型数据同时存在服务器, 则同时会删除服务器端的数据
     destroy: function(options) {
       options = options ? _.clone(options) : {};
       var model = this;
@@ -1016,22 +1072,31 @@
 
       var destroy = function() {
         model.stopListening();
+        // 删除数据成功调用, 触发destroy事件, 如果模型存在于Collection集合中, 集合将监听destroy事件并在触发时从集合中移除该模型
         model.trigger('destroy', model, model.collection, options);
       };
 
       options.success = function(resp) {
         if (wait) destroy();
         if (success) success.call(options.context, model, resp, options);
+        // 如果该模型不是一个客户端新建的模型, 触发sync事件
         if (!model.isNew()) model.trigger('sync', model, resp, options);
       };
 
       var xhr = false;
+      // 如果该模型是一个客户端新建的模型, 
       if (this.isNew()) {
+        // underscore _.defer(function, *arguments) 延迟调用function直到当前调用栈清空为止，类似使用延时为0的setTimeout方法。
         _.defer(options.success);
       } else {
+        // 请求发生错误时通过wrapError处理error事件
         wrapError(this, options);
+        // 通过sync方法发送删除数据的请求
         xhr = this.sync('delete', this, options);
       }
+
+      // 如果没有在options对象中配置wait项, 则会先删除本地数据, 再发送请求删除服务器数据
+      // 此时无论服务器删除是否成功, 本地模型数据已被删除
       if (!wait) destroy();
       return xhr;
     },
@@ -1040,13 +1105,24 @@
     // using Backbone's restful methods, override this to change the endpoint
     // that will be called.
     //backbone Model的url构造函数，我们可以指定一个urlRoot作为根路径，另外也可以继承来自collection的url
-    //当然我们还可以覆盖这个url函数的写法(不推荐)
+    // 当然我们还可以覆盖这个url函数的写法(不推荐)
+    // 获取模型在服务器接口中对应的url, 在调用save, fetch, destroy等与服务器交互的方法时, 将使用该方法获取url
+    // 如果在模型中定义了urlRoot, 服务器接口应为[urlRoot/id]形式
+    // 如果模型所属的Collection集合定义了url方法或属性, 则使用集合中的url形式: [collection.url/id]
+    // 在访问服务器url时会在url后面追加上模型的id, 便于服务器标识一条记录, 因此模型中的id需要与服务器记录对应
+    // 如果无法获取模型或集合的url, 将调用urlError方法抛出一个异常
     url: function() {
+      // underscore _.result(object, property)方法:如果对象 object 中的属性 property 是函数, 则调用它, 否则, 返回它。
+      // 
+      // 定义服务器对应的url路径
       var base =
         _.result(this, 'urlRoot') ||
         _.result(this.collection, 'url') ||
         urlError();
+      // 如果当前模型是客户端新建的模型, 则不存在id属性, 服务器url直接使用base
       if (this.isNew()) return base;
+      // 如果当前模型具有id属性, 可能是调用了save或destroy方法, 将在base后面追加模型的id
+      // 下面将判断base最后一个字符是否是"/", 生成的url格式为[base/id]
       var id = this.get(this.idAttribute);
       return base.replace(/[^\/]$/, '$&/') + encodeURIComponent(id);
     },
@@ -1078,10 +1154,14 @@
 
     // Run validation against the next complete set of model attributes,
     // returning `true` if all is well. Otherwise, fire an `"invalid"` event.
-    // 针对下一个完整的模型属性运行验证，如果一切都很好，返回“true”。 否则，触发“invalid”事件。
+    // 数据验证方法, 在调用set, save, add等数据更新方法时, 被自动执行
+    // 验证失败会触发模型对象的"error"事件, 如果在options中指定了error处理函数, 则只会执行options.error函数
+    // 
     _validate: function(attrs, options) {
       if (!options.validate || !this.validate) return true;
+      // 获取对象中所有的属性值
       attrs = _.extend({}, this.attributes, attrs);
+      // 放入validate方法中进行验证。validate方法包含2个参数, 分别为模型中的数据集合与配置对象, 如果验证通过则不返回任何数据(默认为undefined), 验证失败则返回带有错误信息数据
       var error = this.validationError = this.validate(attrs, options) || null;
       if (!error) return true;
       this.trigger('invalid', this, error, _.extend(options, {validationError: error}));
