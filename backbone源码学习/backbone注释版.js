@@ -66,7 +66,7 @@
   // Runs Backbone.js in *noConflict* mode, returning the `Backbone` variable
   // to its previous owner. Returns a reference to this Backbone object.
   // 防止冲突变量的解决方案。如过全局变量已经存在 Backbone ，那么使用此函数更换类库变量名，例子：
-  // var test = Backbone.noConflict();  
+  // var test = Backbone.noConflict();
   Backbone.noConflict = function() {
     root.Backbone = previousBackbone;
     return this;
@@ -90,7 +90,7 @@
   // Backbone.Events
   // ---------------
   // Backbone 事件部分
-    
+
   // A module that can be mixed in to *any object* in order to provide it with
   // a custom event channel. You may bind a callback to an event with `on` or
   // remove with `off`; `trigger`-ing an event fires all callbacks in
@@ -100,8 +100,8 @@
   //     _.extend(object, Backbone.Events);
   //     object.on('expand', function(){ alert('expanded'); });
   //     object.trigger('expand');
-  //     
-  //     
+  //
+  //
   // Backbone的 Events 实际上就是一个观察者模式(发布订阅模式)的实现，并且巧妙的是，还可以作为mixin混入到自己写的object中，
   // 当然，Backbone自身也用了，所以这个Events的实现是放在前面的。
   // mixin例子：
@@ -110,7 +110,7 @@
   //     object.on('expand', function(){ alert('expanded'); });
   //     object.trigger('expand');
   // 另外需要注意的是，由于之后需要进行对象整合，所以这里的Events对象可以理解为会被变成被调用的对象上下文。
-  //     
+  //
   // 初始化Events为一个空对象,js中的对象是按引用传递的。
   var Events = Backbone.Events = {};
 
@@ -128,15 +128,15 @@
   // maps `{event: callback}`).
   // eventsApi 起到分流的作用。迭代不同的`event，callback`绑定形式：标准形式：`event, callback` ；多个空格分隔的事件形式：`"change blur", callback` 和 jQuery风格的事件地图： `{event: callback}`。
   // 1.普通绑定：
-  // model.on("change", on_change_callback);  
+  // model.on("change", on_change_callback);
   // 2.传入一个名称，回调函数的对象
-  // model.on({ 
+  // model.on({
   //     "change": on_change_callback,
   //     "remove": on_remove_callback
-  // });  
+  // });
   // 3.使用空格分割的多个事件名称绑定到同一个回调函数上
-  // model.on("change remove", common_callback);  
-  // 
+  // model.on("change remove", common_callback);
+  //
   // 参数：
   // iteratee 实际真正要调用的函数，做绑定iteratee = onApi , onceMap; 做解绑 iteratee = offApi; 做触发 iteratee = triggerApi
   // events 事件，有很多情况中传入的是this._events
@@ -204,7 +204,7 @@
       listeners[_listening.id] = _listening;
       // Allow the listening to use a counter, instead of tracking
       // callbacks for library interop
-      // 
+      //
       // todo
       // 允许 listening 使用计数器，而不是跟踪库互操作性回调
       _listening.interop = false;
@@ -218,14 +218,14 @@
   // an event in another object... keeping track of what it's listening to
   // for easier unbinding later.
   // todo------------
-  // 
+  //
   // “on”的控制反转版本。
   // 让 object 监听 另一个（other）对象上的一个特定事件。跟踪它正在监听的内容，以便以后解除绑定。
   // 比如，B对象上面发生b事件的时候，通知A调用回调函数。
   // 例子1:A.listenTo(B, “b”, callback);
   // 当然，实际上这个用on来写也是可行的
   // B.on(“b”, callback, A);
-  // 
+  //
   // 这个函数的作用就是构建_listeningTo的一个过程。
   // _listeningTo:当前对象所监听的对象。对象里面是一个或多个以被监听对象的_listenId为名字的对象。每一个对象结构如下：
   // {
@@ -235,7 +235,7 @@
   //     obj: child, // 被监听的对象
   //     objId: "12" // 被监听对象id
   // }
-  // 
+  //
   // 参数：`obj`是当前`object`想要监听的`obj`对象, `name`是监听的事件名, `callback`是监听事件触发时的回调函数.
   Events.listenTo = function(obj, name, callback) {
     // 如果没有 obj ，则直接返回 this
@@ -258,13 +258,13 @@
     if (!listening) {
       // 生成 例子中的B 的id: _listenId
       this._listenId || (this._listenId = _.uniqueId('l'));
-      // 生成 listening 和 _listening 还有 listeningTo[id] 
+      // 生成 listening 和 _listening 还有 listeningTo[id]
       listening = _listening = listeningTo[id] = new Listening(this, obj);
     }
 
     // Bind callbacks on obj.
     // 在obj 上绑定回调
-    // 
+    //
     // tryCatchOn：一个try-catch保护on函数，以防止污染全局`_listening`变量。
     // 在obj 上绑定回调绑定函数，如果不对就报错
     var error = tryCatchOn(obj, name, callback, this);
@@ -276,7 +276,7 @@
     // 没有错误
     // If the target obj is not Backbone.Events, track events manually.
     // 如果目标 obj 不是 Backbone.Events，则手动追踪。
-    // 
+    //
     // todo
     if (listening.interop) listening.on(name, callback);
 
@@ -292,7 +292,7 @@
   var onApi = function(events, name, callback, options) {
     // 如果有回调
     if (callback) {
-     
+
       // 如果针对要绑定的事件，已经建立有回调函数数列，就直接用，没有就初始化为空数组
       var handlers = events[name] || (events[name] = []);
       // 针对这个回调事件 ，生成相应信息
@@ -355,7 +355,7 @@
     // 找到 正在监听的对象
     var listeningTo = this._listeningTo;
 
-    // 获取当前已监听对象. 为空时直接返回. 
+    // 获取当前已监听对象. 为空时直接返回.
     if (!listeningTo) return this;
 
     // 获取所有需要解除的事件id，如果有指定obj 则 obj 上监听的事件，否则就是获取所有正在监听的事件id集合
@@ -408,7 +408,7 @@
     for (; i < names.length; i++) {
       // 获取事件名称
       name = names[i];
-      // 获取保存此事件的数组对象，比如要删除click 
+      // 获取保存此事件的数组对象，比如要删除click
       var handlers = events[name];
 
       // Bail out if there are no events stored.
@@ -478,7 +478,7 @@
     // var func = function(greeting){ return greeting + ': ' + this.name };
     // func = _.bind(func, {name: 'moe'}, 'hi');
     // func();
-    // => 'hi: moe' 
+    // => 'hi: moe'
     var events = eventsApi(onceMap, {}, name, callback, _.bind(this.stopListening, this, obj));
     // 调用listenTo方法
     return this.listenTo(obj, events);
@@ -548,7 +548,7 @@
   // triggering events. Tries to keep the usual cases speedy (most internal
   // Backbone events have 3 arguments).
   // 对事件进行触发,优先进行call调用，call调用比apply调用效率更高，所以优先进行call调用
-  // 之所以用`switch`是因为大多数的回调函数需要的参数都在三个以内(包含三个).如果是小于三个的参数，就用call，否则用apply 
+  // 之所以用`switch`是因为大多数的回调函数需要的参数都在三个以内(包含三个).如果是小于三个的参数，就用call，否则用apply
   // 这里的events参数，实际上是回调函数列
   var triggerEvents = function(events, args) {
     var ev, i = -1, l = events.length, a1 = args[0], a2 = args[1], a3 = args[2];
@@ -626,7 +626,7 @@
 
 
   // 至此,Events部分结束,接下来是Model部分
-  // Backbone.Model
+  // Backbone.Model  模型Model绑定键值数据和自定义事件；
   // --------------
   // 每当一个模型建立，一个 cid 便会被自动创建
   // 实际上，Model 函数内的语句顺序也是很重要的，这个不能随便打乱顺序(初始化过程)
@@ -667,7 +667,7 @@
 
     // underscore _.defaults(object, *defaults)方法:用defaults对象填充object中的undefined属性。 并且返回这个object。一旦这个属性被填充，再使用defaults方法将不会有任何效果。
     // underscore _.extend(destination, *sources)方法:复制source对象中的所有属性覆盖到destination对象上，并且返回 destination 对象. 复制是按顺序的, 所以后面的对象属性会把前面的对象属性覆盖掉(如果有重复).
- 
+
     // 合并 默认属性 和 传进来的参数属性 到一个空数组，将未被设置的属性默认为默认值。
     attrs = _.defaults(_.extend({}, defaults, attrs), defaults);
     // 调用后面定义的`set`方法设置数据到`this.attributes`中.
@@ -719,7 +719,7 @@
     },
 
     // Proxy `Backbone.sync` by default -- but override this if you need
-    // custom syncing semantics for *this* particular model.
+    // custom syncing sem/antics for *this* particular model.
     // 默认情况下，代理`Backbone.sync`，但是如果需要* this *特定模型的自定义同步语义，则重写此代码。
     sync: function() {
       return Backbone.sync.apply(this, arguments);
@@ -749,7 +749,7 @@
     // Special-cased proxy to underscore's `_.matches` method.
     // 特殊情况下代理 underscore's `_.matches` 方法
     matches: function(attrs) {
-      // underscore _.iteratee(value, [context], [argCount]) 方法:一个重要的内部函数用来生成可应用到集合中每个元素的回调， 返回想要的结果 - 无论是等式，任意回调，属性匹配，或属性访问。 
+      // underscore _.iteratee(value, [context], [argCount]) 方法:一个重要的内部函数用来生成可应用到集合中每个元素的回调， 返回想要的结果 - 无论是等式，任意回调，属性匹配，或属性访问。
       return !!_.iteratee(attrs, this)(this.attributes);
     },
 
@@ -782,7 +782,7 @@
 
       // Extract attributes and options.
       // 其它属性和选项
-      // 
+      //
       // 这个变量标志着是删除而不是重新赋值,为下文直接调用set方法进行unset提供了方便
       var unset      = options.unset;
       // 是否静默改变,如果不是静默改变就可以触发change函数
@@ -860,9 +860,9 @@
 
       // ??????
       // 判断 options.silent 是否为 true，若不是则将 this.pending 置为 false，同时触发 change 事件，并不断循环，直到 this.pending 为 false 为止
-      // 
+      //
       // _pending:https://github.com/jashkenas/backbone/issues/2846
-      // 
+      //
       // 如果有更改事件的监听器更新多个属性，则不会调用所有set的函数。while循环处理1个监听器调用多次的边缘情况，而不是多个监听器，每个调用set一次。例子：
       // model.on('change:a', function() {
       //   model.set({b: true});
@@ -899,7 +899,7 @@
     // Determine if the model has changed since the last `"change"` event.
     // If you specify an attribute name, determine if that attribute has changed.
     // 确定最近的一次 “change” 事件 触发了 model 变化。
-    // 
+    //
     // underscore _.isEmpty(object)方法:如果object 不包含任何值(没有可枚举的属性)，返回true。 对于字符串和类数组（array-like）对象，如果length属性为0，那么_.isEmpty检查返回true。
     // _.isEmpty([1, 2, 3]);
     // => false
@@ -984,7 +984,7 @@
     save: function(key, val, options) {
       // Handle both `"key", value` and `{key: value}` -style arguments.
       // 处理 key,value 和 {key:value} 两种形式的参数
-      // 
+      //
       // attrs存储需要保存到服务器的数据对象
       var attrs;
       if (key == null || typeof key === 'object') {
@@ -1061,7 +1061,7 @@
     // Optimistically removes the model from its collection, if it has one.
     // If `wait: true` is passed, waits for the server to respond before removal.
     // 如果服务器已经持久化，则在服务器上销毁此模型。如果有模型，则可以从Collection集合中删除该模型。 如果设置了“wait：true”，请等待服务器成功响应再删除。
-    // 
+    //
     // 如果模型是在客户端新建的, 则直接从客户端删除
     // 如果模型数据同时存在服务器, 则同时会删除服务器端的数据
     destroy: function(options) {
@@ -1084,7 +1084,7 @@
       };
 
       var xhr = false;
-      // 如果该模型是一个客户端新建的模型, 
+      // 如果该模型是一个客户端新建的模型,
       if (this.isNew()) {
         // underscore _.defer(function, *arguments) 延迟调用function直到当前调用栈清空为止，类似使用延时为0的setTimeout方法。
         _.defer(options.success);
@@ -1113,7 +1113,7 @@
     // 如果无法获取模型或集合的url, 将调用urlError方法抛出一个异常
     url: function() {
       // underscore _.result(object, property)方法:如果对象 object 中的属性 property 是函数, 则调用它, 否则, 返回它。
-      // 
+      //
       // 定义服务器对应的url路径
       var base =
         _.result(this, 'urlRoot') ||
@@ -1156,7 +1156,7 @@
     // returning `true` if all is well. Otherwise, fire an `"invalid"` event.
     // 数据验证方法, 在调用set, save, add等数据更新方法时, 被自动执行
     // 验证失败会触发模型对象的"error"事件, 如果在options中指定了error处理函数, 则只会执行options.error函数
-    // 
+    //
     _validate: function(attrs, options) {
       if (!options.validate || !this.validate) return true;
       // 获取对象中所有的属性值
@@ -1170,34 +1170,48 @@
 
   });
 
-  // Backbone.Collection
-  // -------------------
 
+  // 至此,Model部分结束,接下来是Collection部分
+  // Backbone.Collection 集合Colection是模型的有序或无序集合，带有丰富的可枚举API；
+  // -------------------
   // If models tend to represent a single row of data, a Backbone Collection is
   // more analogous to a table full of data ... or a small slice or page of that
   // table, or a collection of rows that belong together for a particular reason
   // -- all of the messages in this particular folder, all of the documents
   // belonging to this particular author, and so on. Collections maintain
   // indexes of their models, both in order, and for lookup by `id`.
+  // 如果 model 更倾向于表示单行数据，那么 Backbone Collection 更类似于完整数据的表，或者表数据的一小片或者一页表格，或者因为一些原因而聚集在一起的多条行数据。Collections 维护其模型的索引，无论是按顺序的还是通过“id”进行查找。
 
   // Create a new **Collection**, perhaps to contain a specific type of `model`.
   // If a `comparator` is specified, the Collection will maintain
   // its models in sort order, as they're added and removed.
+  // 创建一个新的 **Collection**，可能包含了某一种特定的类型的 model。如果指定了“comparator”，则Collection将按照排序顺序维护其模型，当它们被添加和删除。
   var Collection = Backbone.Collection = function(models, options) {
+    // 配置对象
     options || (options = {});
+    // 提前初始化
     this.preinitialize.apply(this, arguments);
-    if (options.model) this.model = options.model;
+    // 在配置参数中设置集合的模型类作为当前的模型
+    // 实际上我们在创建集合类的时候大多数都会定义一个model, 而不是在初始化的时候从options中指定model
+    if (options.model) this.model = options.model
+    // options中指定一个comparator作为排序器;集合中的数据将按照comparator方法中的排序算法进行排序(在add方法中会自动调用)
     if (options.comparator !== void 0) this.comparator = options.comparator;
+    // 实例化时重置集合的内部状态(第一次调用时可理解为定义状态)
     this._reset();
+    // 初始化
     this.initialize.apply(this, arguments);
+    // 如果指定了models数据, 则调用reset方法将数据添加到集合中
+    // 首次调用时设置了silent参数, 因此不会触发"reset"事件
     if (models) this.reset(models, _.extend({silent: true}, options));
   };
 
   // Default options for `Collection#set`.
+  // 设置`Collection#set`默认配置
   var setOptions = {add: true, remove: true, merge: true};
   var addOptions = {add: true, remove: false};
 
   // Splices `insert` into `array` at index `at`.
+  // 拼接数组
   var splice = function(array, insert, at) {
     at = Math.min(Math.max(at, 0), array.length);
     var tail = Array(array.length - at);
@@ -1209,28 +1223,36 @@
   };
 
   // Define the Collection's inheritable methods.
+  // 通过extend方法定义集合类原型方法
   _.extend(Collection.prototype, Events, {
 
     // The default model for a collection is just a **Backbone.Model**.
     // This should be overridden in most cases.
+    // 定义集合的模型类, 模型类必须是一个Backbone.Model。
+    // 大多数情况下会被重写。
     model: Model,
 
 
     // preinitialize is an empty function by default. You can override it with a function
     // or object.  preinitialize will run before any instantiation logic is run in the Collection.
+    // preinitialize默认为空函数。你可以用函数或者对象重写它。preinitialize将在Collection中运行任何实例逻辑之前，先运行。
     preinitialize: function(){},
 
     // Initialize is an empty function by default. Override it with your own
     // initialization logic.
+    // initialize 默认也是空函数。你可以用你自己的初始化函数覆盖它。
     initialize: function(){},
 
     // The JSON representation of a Collection is an array of the
     // models' attributes.
+    // 返回一个数组, 包含了集合中每个模型的属性。
     toJSON: function(options) {
-      return this.map(function(model) { return model.toJSON(options); });
+        // 通过Undersocre的map方法将集合中每一个模型的toJSON结果组成一个数组, 并返回
+        return this.map(function(model) { return model.toJSON(options); });
     },
 
     // Proxy `Backbone.sync` by default.
+    // 默认代理`Backbone.sync`
     sync: function() {
       return Backbone.sync.apply(this, arguments);
     },
@@ -1238,15 +1260,22 @@
     // Add a model, or list of models to the set. `models` may be Backbone
     // Models or raw JavaScript objects to be converted to Models, or any
     // combination of the two.
+    // 向集合中添加一个或多个模型对象
+    // 这个模型可以是backbone模型，也可以是用来生成backbone模型的js键值对象或者两者的任意组合。
     add: function(models, options) {
       return this.set(models, _.extend({merge: false}, options, addOptions));
     },
 
     // Remove a model, or a list of models from the set.
+    // 从集合中删除一个或多个模型对象
+    // ????
     remove: function(models, options) {
       options = _.extend({}, options);
+      // underscore _.isArray(object)方法: 如果object是一个数组，返回true。
       var singular = !_.isArray(models);
+      // models不是数组，就套个盒转换为数组
       models = singular ? [models] : models.slice();
+
       var removed = this._removeModels(models, options);
       if (!options.silent && removed.length) {
         options.changes = {added: [], merged: [], removed: removed};
@@ -1259,26 +1288,50 @@
     // removing models that are no longer present, and merging models that
     // already exist in the collection, as necessary. Similar to **Model#set**,
     // the core operation for updating the data contained by the collection.
+    // 通过“set”更新集合，添加新的模型，删除不再存在的模型，并根据需要合并集合中已存在的模型。 类似于** Model＃set **，用于更新集合所包含的数据的核心操作。
+    /*
+       set可能有如下几个调用场景：
+       1. 重置模式，这个时候不在models里的model都会被清除掉。对应上文的：var setOptions = {add: true, remove: true, merge: true};
+       2. 添加模式，这个时候models里的内容会做添加用，如果有重复的(Cid来判断)，会覆盖。对应上文的：var addOptions = {add: true, remove: false};
+       我们还是理一理里面做了哪些事情：
+
+       * 先规范化models和options两个参数
+       * 遍历models：
+         * 如果是重置模式，那么遇到重复的就直接覆盖掉，并且也添加到set队列，遇到新的就先添加到set队列。之后还要删除掉models里没有而原来collection里面有的
+         * 如果是添加模式，那么遇到重复的，就先添加到set队列，遇到新的也是添加到set队列
+       * 之后进行整理，整合到collection中
+    */
+
+    // ?????
     set: function(models, options) {
+      // 如果没有传入要操作的 models ,则直接返回
       if (models == null) return;
 
       options = _.extend({}, setOptions, options);
       if (options.parse && !this._isModel(models)) {
         models = this.parse(models, options) || [];
       }
-
+      //判断models是不是一个数组,如果不是数组先转化成数组方便以后处理
       var singular = !_.isArray(models);
       models = singular ? [models] : models.slice();
 
+      //如果at为null,经过这几个条件的处理at仍然为null
       var at = options.at;
+      //强制转化为数字
       if (at != null) at = +at;
       if (at > this.length) at = this.length;
       if (at < 0) at += this.length + 1;
 
+
+      //set里面存放的是新的Collection的models
       var set = [];
+      //toAdd存储将要增加的model
       var toAdd = [];
+      //toMerge存储将要合并的model
       var toMerge = [];
+      //toRemove存储将要移除的model
       var toRemove = [];
+      //modelMap在删除变量的时候会被用到
       var modelMap = {};
 
       var add = options.add;
@@ -1286,33 +1339,49 @@
       var remove = options.remove;
 
       var sort = false;
+      // 是否可以排序。如果有排序器，并且at是null并且配置中options.sort 不是false，那么就是可以排序
       var sortable = this.comparator && at == null && options.sort !== false;
+      // 按照什么属性排序
       var sortAttr = _.isString(this.comparator) ? this.comparator : null;
 
       // Turn bare objects into model references, and prevent invalid models
       // from being added.
+      // 将空对象转换为模型引用，并防止添加无效模型。
       var model, i;
       for (i = 0; i < models.length; i++) {
         model = models[i];
 
         // If a duplicate is found, prevent it from being added and
         // optionally merge it into the existing model.
+        // 如果发现重复，则阻止它被添加，并且可选地将其合并到现有模型中。
+        // 判断是否重复
+        // 这个判断是否重复是根据model的cid来判断的,而cid是model在初始化的时候系统调用underscore的方法建立的随机数,并不是用户建立的
         var existing = this.get(model);
+        // 如果重复
         if (existing) {
+          //如果有相同cid的model,但是model的内容却变化了
           if (merge && model !== existing) {
+            //取出传入的model的属性
             var attrs = this._isModel(model) ? model.attributes : model;
+            //进行JSON解析
             if (options.parse) attrs = existing.parse(attrs, options);
+            //重新给model赋值
             existing.set(attrs, options);
+
             toMerge.push(existing);
+            //排序标志属性是否有变化
             if (sortable && !sort) sort = existing.hasChanged(sortAttr);
           }
+          //将存在的model放入set和modelMap
           if (!modelMap[existing.cid]) {
             modelMap[existing.cid] = true;
             set.push(existing);
           }
+          //规范化models[i]
           models[i] = existing;
 
         // If this is a new, valid model, push it to the `toAdd` list.
+        // 如果 是 有效的新model,把它push 进`toAdd`数组
         } else if (add) {
           model = models[i] = this._prepareModel(model, options);
           if (model) {
@@ -1325,6 +1394,7 @@
       }
 
       // Remove stale models.
+      // 删除陈旧的模型。
       if (remove) {
         for (i = 0; i < this.length; i++) {
           model = this.models[i];
@@ -1334,6 +1404,7 @@
       }
 
       // See if sorting is needed, update `length` and splice in new models.
+      // 查看是否需要排序，更新“长度”和新模型中的拼接。如果是作为重置使用，肯定是要将没有在第一个参数中出现的删除的，如果仅仅是增加，那么就不需要删除
       var orderChanged = false;
       var replace = !sortable && add && remove;
       if (set.length && replace) {
@@ -1378,6 +1449,7 @@
     // you can reset the entire set with a new list of models, without firing
     // any granular `add` or `remove` events. Fires `reset` when finished.
     // Useful for bulk operations and optimizations.
+    // 传入一组模型，重置collection
     reset: function(models, options) {
       options = options ? _.clone(options) : {};
       for (var i = 0; i < this.models.length; i++) {
