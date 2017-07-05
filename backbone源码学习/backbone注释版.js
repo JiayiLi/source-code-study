@@ -1449,7 +1449,7 @@
     // you can reset the entire set with a new list of models, without firing
     // any granular `add` or `remove` events. Fires `reset` when finished.
     // Useful for bulk operations and optimizations.
-    // 传入一组模型，重置collection
+    // 传入一组模型，重置collection。适用于批量操作和优化。
     reset: function(models, options) {
       options = options ? _.clone(options) : {};
       for (var i = 0; i < this.models.length; i++) {
@@ -1463,22 +1463,26 @@
     },
 
     // Add a model to the end of the collection.
+    // 添加一个 model 到 collection 集合的最后。
     push: function(model, options) {
       return this.add(model, _.extend({at: this.length}, options));
     },
 
     // Remove a model from the end of the collection.
+    // 从collection末尾删除一个 model .
     pop: function(options) {
       var model = this.at(this.length - 1);
       return this.remove(model, options);
     },
 
     // Add a model to the beginning of the collection.
+    // 在 collection 开头添加一个 model
     unshift: function(model, options) {
       return this.add(model, _.extend({at: 0}, options));
     },
 
     // Remove a model from the beginning of the collection.
+    // 从collection 开头删除一个 model
     shift: function(options) {
       var model = this.at(0);
       return this.remove(model, options);
@@ -1499,11 +1503,13 @@
     },
 
     // Returns `true` if the model is in the collection.
+    // 判断collection是否存在某个 model 
     has: function(obj) {
       return this.get(obj) != null;
     },
 
     // Get the model at the given index.
+    // 通过 index 获得对应的 model
     at: function(index) {
       if (index < 0) index += this.length;
       return this.models[index];
@@ -1511,12 +1517,14 @@
 
     // Return models with matching attributes. Useful for simple cases of
     // `filter`.
+    // 返回 和目标属性匹配的 models 。对于“filter”的简单情况很有用。
     where: function(attrs, first) {
       return this[first ? 'find' : 'filter'](attrs);
     },
 
     // Return the first model with matching attributes. Useful for simple cases
     // of `find`.
+    // 返回 目标属性匹配的第一个 model。 对于“find”的简单情况很有用。
     findWhere: function(attrs) {
       return this.where(attrs, true);
     },
@@ -1524,6 +1532,7 @@
     // Force the collection to re-sort itself. You don't need to call this under
     // normal circumstances, as the set will maintain sort order as each item
     // is added.
+    // 强制collection排序。在正常情况下，您不需要调用它，因为在添加每个项目时，该集合将自己排序。
     sort: function(options) {
       var comparator = this.comparator;
       if (!comparator) throw new Error('Cannot sort a set without a comparator');
@@ -1543,6 +1552,7 @@
     },
 
     // Pluck an attribute from each model in the collection.
+    // 在 collection 中抽取某个属性
     pluck: function(attr) {
       return this.map(attr + '');
     },
@@ -1550,6 +1560,7 @@
     // Fetch the default set of models for this collection, resetting the
     // collection when they arrive. If `reset: true` is passed, the response
     // data will be passed through the `reset` method instead of `set`.
+    // 获取collection的默认模型集合，在收集后重置该模型。 如果“reset：true”被传递，响应数据将通过`reset`方法而不是`set`传递。
     fetch: function(options) {
       options = _.extend({parse: true}, options);
       var success = options.success;
@@ -1567,6 +1578,7 @@
     // Create a new instance of a model in this collection. Add the model to the
     // collection immediately, unless `wait: true` is passed, in which case we
     // wait for the server to agree.
+    // 在此集合中创建模型的新实例。 立即将模型添加到集合中，除非“wait：true”被传递，在这种情况下，我们等待服务器同意。
     create: function(model, options) {
       options = options ? _.clone(options) : {};
       var wait = options.wait;
