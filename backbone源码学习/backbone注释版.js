@@ -1552,7 +1552,7 @@
     },
 
     // Pluck an attribute from each model in the collection.
-    // 在 collection 中抽取某个属性
+    // 将collection中所有模型的attr属性值存放到一个数组并返回
     pluck: function(attr) {
       return this.map(attr + '');
     },
@@ -1560,17 +1560,24 @@
     // Fetch the default set of models for this collection, resetting the
     // collection when they arrive. If `reset: true` is passed, the response
     // data will be passed through the `reset` method instead of `set`.
+    // 从服务器获取集合的初始化数据.
     // 获取collection的默认模型集合，在收集后重置该模型。 如果“reset：true”被传递，响应数据将通过`reset`方法而不是`set`传递。
     fetch: function(options) {
+      // 复制options对象, 因为options对象在后面会被修改用于临时存储数据
       options = _.extend({parse: true}, options);
+      // 自定义回调函数, 数据请求成功后并添加完成后, 会调用自定义success函数
       var success = options.success;
+      // collection记录当前集合对象, 用于在success回调函数中使用
       var collection = this;
+      // 当从服务器请求数据成功时执行options.success, 该函数中将解析并添加数据
       options.success = function(resp) {
         var method = options.reset ? 'reset' : 'set';
         collection[method](resp, options);
+        // 如果设置了自定义成功回调, 则执行
         if (success) success.call(options.context, collection, resp, options);
         collection.trigger('sync', collection, resp, options);
       };
+      // 当服务器返回状态错误时, 通过wrapError方法处理错误事件
       wrapError(this, options);
       return this.sync('read', this, options);
     },
@@ -1578,25 +1585,37 @@
     // Create a new instance of a model in this collection. Add the model to the
     // collection immediately, unless `wait: true` is passed, in which case we
     // wait for the server to agree.
-    // 在此集合中创建模型的新实例。 立即将模型添加到集合中，除非“wait：true”被传递，在这种情况下，我们等待服务器同意。
+    // 向集合中添加并创建一个模型, 同时将该模型保存到服务器
+    // 如果是通过数据对象来创建模型, 需要在集合中声明model属性对应的模型类
+    // 如果在options中声明了wait属性, 则会在服务器创建成功后再将模型添加到集合, 否则先将模型添加到集合, 再保存到服务器(无论保存是否成功)
     create: function(model, options) {
       options = options ? _.clone(options) : {};
       var wait = options.wait;
+      // 通过_prepareModel获取模型类的实例
       model = this._prepareModel(model, options);
+      // 模型创建失败
       if (!model) return false;
+      // 如果没有声明wait属性, 则通过add方法将模型添加到集合中
       if (!wait) this.add(model, options);
       var collection = this;
+      // success存储保存到服务器成功之后的自定义回调函数(通过options.success声明)
       var success = options.success;
+      // 监听模型数据保存成功后的回调函数
       options.success = function(m, resp, callbackOpts) {
+        // 如果声明了wait属性, 则在只有在服务器保存成功后才会将模型添加到集合中
         if (wait) collection.add(m, callbackOpts);
+        // 如果声明了自定义成功回调, 则执行自定义函数
         if (success) success.call(callbackOpts.context, m, resp, callbackOpts);
       };
+      // 调用模型的save方法, 将模型数据保存到服务器
       model.save(null, options);
       return model;
     },
 
     // **parse** converts a response into a list of models to be added to the
     // collection. The default implementation is just to pass it through.
+    // 数据解析方法, 用于将服务器数据解析为模型和集合可用的结构化数据
+    // 默认将返回resp本身, 这需要与服务器定义Backbone支持的数据格式, 如果需要自定义数据格式, 可以重载parse方法
     parse: function(resp, options) {
       return resp;
     },
@@ -1631,14 +1650,19 @@
 
     // Private method to reset all internal state. Called when the collection
     // is first initialized or reset.
+    // 删除所有集合元素并重置集合中的数据状态
     _reset: function() {
+      // 删除集合元素
       this.length = 0;
       this.models = [];
+      // 重置集合状态
       this._byId  = {};
     },
 
     // Prepare a hash of attributes (or other model) to be added to this
     // collection.
+    // 将模型添加到集合中之前的一些准备工作
+    // 包括将数据实例化为一个模型对象, 和将集合引用到模型的collection属性
     _prepareModel: function(attrs, options) {
       if (this._isModel(attrs)) {
         if (!attrs.collection) attrs.collection = this;
@@ -1653,6 +1677,8 @@
     },
 
     // Internal method called by both remove and set.
+    // 解绑某个模型与集合的关系, 包括对集合的引用和事件监听
+    // 一般在调用remove方法删除模型或调用reset方法重置状态时自动调用
     _removeModels: function(models, options) {
       var removed = [];
       for (var i = 0; i < models.length; i++) {
@@ -1707,19 +1733,30 @@
     // Sets need to update their indexes when models change ids. All other
     // events simply proxy through. "add" and "remove" events that originate
     // in other collections are ignored.
+    // 在向集合中添加模型时被自动调用
+    // 用于监听集合中模型的事件, 当模型在触发事件(add, remove, destroy, change事件)时集合进行相关处理
     _onModelEvent: function(event, model, collection, options) {
       if (model) {
+        // 添加和移除模型的事件, 必须确保模型所属的集合为当前集合对象
         if ((event === 'add' || event === 'remove') && collection !== this) return;
+        // 模型触发销毁事件时, 从集合中移除
         if (event === 'destroy') this.remove(model, options);
+        // 当模型的id被修改时, 集合修改_byId中存储对模型的引用, 保持与模型id的同步, 便于使用get()方法获取模型对象
         if (event === 'change') {
+          // 获取模型在改变之前的id, 并根据此id从集合的_byId列表中移除
           var prevId = this.modelId(model.previousAttributes());
           var id = this.modelId(model.attributes);
           if (prevId !== id) {
             if (prevId != null) delete this._byId[prevId];
+            // 以模型新的id作为key, 在_byId列表中存放对模型的引用
             if (id != null) this._byId[id] = model;
           }
         }
       }
+      // 在集合中触发模型对应的事件, 无论模型触发任何事件, 集合都会触发对应的事件
+      // (例如当模型被添加到集合中时, 会触发模型的"add"事件, 同时也会在此方法中触发集合的"add"事件)
+      // 这对于监听并处理集合中模型状态的变化非常有效
+      // 在监听的集合事件中, 触发对应事件的模型会被作为参数传递给集合的监听函数
       this.trigger.apply(this, arguments);
     }
 
