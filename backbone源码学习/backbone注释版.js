@@ -1828,7 +1828,7 @@
     return {value: void 0, done: true};
   };
 
-  // Backbone.View
+  // Backbone.View  视图相关
   // -------------
 
   // Backbone Views are almost more convention than they are actual code. A View
@@ -1838,14 +1838,26 @@
   // UI as a **View** allows you to define your DOM events declaratively, without
   // having to worry about render order ... and makes it easy for the view to
   // react to specific changes in the state of your models.
+  // 视图只是一个JavaScript对象，它表示DOM中的一个逻辑块UI。
 
   // Creating a Backbone.View creates its initial element outside of the DOM,
   // if an existing element is not provided...
+  // 
+  // 视图类用于创建与数据低耦合的界面控制对象, 通过将视图的渲染方法绑定到数据模型的change事件, 当数据发生变化时会通知视图进行渲染
+  // 视图对象中的el用于存储当前视图所需要操作的DOM最父层元素, 这主要是为了提高元素的查找和操作效率, 其优点包括:
+  // - 查找或操作元素时, 将操作的范围限定在el元素内, 不需要再整个文档树中搜索
+  // - 在为元素绑定事件时, 可以方便地将事件绑定到el元素(默认也会绑定到el元素)或者是其子元素
+  // - 在设计模式中, 将一个视图相关的元素, 事件, 和逻辑限定在该视图的范围中, 降低视图与视图间的耦合(至少在逻辑上是这样)
   var View = Backbone.View = function(options) {
+    // 为每一个视图对象创建一个唯一标识, 前缀为"view"
     this.cid = _.uniqueId('view');
+    // 提前初始化
     this.preinitialize.apply(this, arguments);
+    // underscore _.pick(object, *keys)方法：返回一个object副本，只过滤出keys(有效的键组成的数组)参数指定的属性值。或者接受一个判断函数，指定挑选哪个key。
     _.extend(this, _.pick(options, viewOptions));
+    // 设置或创建视图中的元素
     this._ensureElement();
+    // 调用自定义的初始化方法
     this.initialize.apply(this, arguments);
   };
 
@@ -1853,37 +1865,46 @@
   var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
   // List of view options to be set as properties.
+  // 要设置为属性的视图选项列表。
   var viewOptions = ['model', 'collection', 'el', 'id', 'attributes', 'className', 'tagName', 'events'];
 
   // Set up all inheritable **Backbone.View** properties and methods.
+  // 设置所有可继承的** Backbone.View **属性和方法。
   _.extend(View.prototype, Events, {
 
     // The default `tagName` of a View's element is `"div"`.
+    // 视图元素的默认`tagName`是``div'`。
     tagName: 'div',
 
     // jQuery delegate for element lookup, scoped to DOM elements within the
     // current view. This should be preferred to global lookups where possible.
+    // 用于元素查找的jQuery委托，作用于当前视图中的DOM元素。如果可能，这应该优先于全局查找。
     $: function(selector) {
       return this.$el.find(selector);
     },
 
     // preinitialize is an empty function by default. You can override it with a function
     // or object.  preinitialize will run before any instantiation logic is run in the View
+    // 默认空函数。可重写。
     preinitialize: function(){},
 
     // Initialize is an empty function by default. Override it with your own
     // initialization logic.
+    // 默认空函数。可重写。
     initialize: function(){},
 
     // **render** is the core function that your view should override, in order
     // to populate its element (`this.el`), with the appropriate HTML. The
     // convention is for **render** to always return `this`.
+    // ** render **是您的视图应该覆盖的核心函数，以便使用适当的HTML填充其元素（`this.el`）。这个惯例是** render **总是返回`this`。
     render: function() {
       return this;
     },
 
     // Remove this view by taking the element out of the DOM, and removing any
     // applicable Backbone.Events listeners.
+    //移除这个View。
+    //通过将元素从DOM中移除，并删除任何适用的Backbone.Events侦听器来删除此视图。
     remove: function() {
       this._removeElement();
       this.stopListening();
@@ -1893,12 +1914,14 @@
     // Remove this view's element from the document and all event listeners
     // attached to it. Exposed for subclasses using an alternative DOM
     // manipulation API.
+    // 从文档和附加到其上的所有事件监听器中删除此视图的元素。使用替代的DOM操作API暴露给子类。用jQuery的API进行remove,从DOM树中移除这个节点
     _removeElement: function() {
       this.$el.remove();
     },
 
     // Change the view's element (`this.el` property) and re-delegate the
     // view's events on the new element.
+    // 更改视图的元素（`this.el`属性）并重新委派新元素上的视图事件。
     setElement: function(element) {
       this.undelegateEvents();
       this._setElement(element);
@@ -1911,6 +1934,11 @@
     // context or an element. Subclasses can override this to utilize an
     // alternative DOM manipulation API and are only required to set the
     // `this.el` property.
+    // 
+    /*
+      this.$el代表jQuery节点
+      this.el代表DOM节点
+    */
     _setElement: function(el) {
       this.$el = el instanceof Backbone.$ ? el : Backbone.$(el);
       this.el = this.$el[0];
