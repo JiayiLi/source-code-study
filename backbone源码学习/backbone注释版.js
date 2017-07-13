@@ -1213,6 +1213,7 @@
   // Splices `insert` into `array` at index `at`.
   // 拼接数组
   var splice = function(array, insert, at) {
+    // 确定at值
     at = Math.min(Math.max(at, 0), array.length);
     var tail = Array(array.length - at);
     var length = insert.length;
@@ -1273,7 +1274,8 @@
       options = _.extend({}, options);
       // underscore _.isArray(object)方法: 如果object是一个数组，返回true。
       var singular = !_.isArray(models);
-      // models不是数组，就套个盒转换为数组
+      // models不是数组，就套个壳转换为数组;
+      // 是数组，就调用slice()返回一个新的数组。
       models = singular ? [models] : models.slice();
 
       var removed = this._removeModels(models, options);
@@ -1453,10 +1455,13 @@
     reset: function(models, options) {
       options = options ? _.clone(options) : {};
       for (var i = 0; i < this.models.length; i++) {
+        // _removeReference：移除模块与集合的关系
         this._removeReference(this.models[i], options);
       }
       options.previousModels = this.models;
+      // 重置所有状态
       this._reset();
+      // 从新添加model
       models = this.add(models, _.extend({silent: true}, options));
       if (!options.silent) this.trigger('reset', this, options);
       return models;
@@ -1471,7 +1476,9 @@
     // Remove a model from the end of the collection.
     // 从collection末尾删除一个 model .
     pop: function(options) {
+      // 找到最后一个模块
       var model = this.at(this.length - 1);
+      // 删除模块
       return this.remove(model, options);
     },
 
@@ -1484,7 +1491,9 @@
     // Remove a model from the beginning of the collection.
     // 从collection 开头删除一个 model
     shift: function(options) {
+      // 找到第一个 model
       var model = this.at(0);
+      // 删除第一个model
       return this.remove(model, options);
     },
 
@@ -1495,6 +1504,7 @@
 
     // Get a model from the set by id, cid, model object with id or cid
     // properties, or an attributes object that is transformed through modelId.
+    // 得到model。通过id、cid 或者带有id or cid属性的model对象、或者 通过modelId转化的属性对象。
     get: function(obj) {
       if (obj == null) return void 0;
       return this._byId[obj] ||
@@ -1511,6 +1521,7 @@
     // Get the model at the given index.
     // 通过 index 获得对应的 model
     at: function(index) {
+      // 如果 index 是负数，就是倒数
       if (index < 0) index += this.length;
       return this.models[index];
     },
@@ -1535,6 +1546,7 @@
     // 强制collection排序。在正常情况下，您不需要调用它，因为在添加每个项目时，该集合将自己排序。
     sort: function(options) {
       var comparator = this.comparator;
+      // 调用sort方法必须指定了comparator属性(排序算法方法), 否则将抛出一个错误
       if (!comparator) throw new Error('Cannot sort a set without a comparator');
       options || (options = {});
 
@@ -1681,26 +1693,36 @@
     // 一般在调用remove方法删除模型或调用reset方法重置状态时自动调用
     _removeModels: function(models, options) {
       var removed = [];
+      // 遍历需要移除的模型列表
       for (var i = 0; i < models.length; i++) {
+        // 获取模型
         var model = this.get(models[i]);
+        // 没有获取到模型，则继续下一次循环
         if (!model) continue;
 
+        // indexOf是Underscore对象中的方法, 这里通过indexOf方法获取模型在集合中首次出现的位置
         var index = this.indexOf(model);
+        // 从集合列表中移除该模型
         this.models.splice(index, 1);
+        // 重置当前集合的length属性(记录集合中模型的数量)
         this.length--;
 
         // Remove references before triggering 'remove' event to prevent an
         // infinite loop. #3693
+        // 从_byId列表中移除模型的id引用
         delete this._byId[model.cid];
         var id = this.modelId(model.attributes);
         if (id != null) delete this._byId[id];
 
+        // 如果没有设置silent属性, 则触发模型的remove事件
         if (!options.silent) {
+          // 将当前模型在集合中的位置添加到options对象并传递给remove监听事件, 以便在事件函数中可以使用
           options.index = index;
           model.trigger('remove', model, this, options);
         }
 
         removed.push(model);
+        // 解除模型与集合的关系, 包括集合中对模型的引用和事件监听
         this._removeReference(model, options);
       }
       return removed;
@@ -1708,6 +1730,7 @@
 
     // Method for checking whether an object should be considered a model for
     // the purposes of adding to the collection.
+    // 判断是否是 Model 实例
     _isModel: function(model) {
       return model instanceof Model;
     },
