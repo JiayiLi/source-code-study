@@ -1646,6 +1646,7 @@
     },
 
     // Get an iterator of all models in this collection.
+    // 获取此集合中所有模型的迭代器。
     values: function() {
       return new CollectionIterator(this, ITERATOR_VALUES);
     },
@@ -1736,6 +1737,7 @@
     },
 
     // Internal method to create a model's ties to a collection.
+    // 内部方法用于创建模型与集合的联系。
     _addReference: function(model, options) {
       this._byId[model.cid] = model;
       var id = this.modelId(model.attributes);
@@ -1744,6 +1746,7 @@
     },
 
     // Internal method to sever a model's ties to a collection.
+    // 内部方法用于切断模型与集合的联系。
     _removeReference: function(model, options) {
       delete this._byId[model.cid];
       var id = this.modelId(model.attributes);
@@ -1787,21 +1790,35 @@
 
   // Defining an @@iterator method implements JavaScript's Iterable protocol.
   // In modern ES2015 browsers, this value is found at Symbol.iterator.
+  // 
+  // 定义 $$iterator 方法实现JavaScript 迭代协议。在现代ES2015浏览器中，该值位于Symbol.iterator中。
   /* global Symbol */
+  // 知识点补充：
+    // JavaScript 迭代协议: es6中新加的。
+    // 该迭代协议允许JavaScript对象来定义自己的迭代行为。一些内置类型具有默认迭代行为，例如Array或者Map，而其他类型（例如Object）不是。
+    // 为了可以迭代，一个对象必须实现 $$iterator 方法，这意味着对象（或其原型链中的一个对象）必须具有一个可通过属性访问的 $$iterator ，即Symbol.iterator：
+    // 属性[Symbol.iterator] 值是：一个零参数函数返回一个符合迭代器协议的对象。
+    // 无论何时 一个对象需要被迭代，都会调用它的 $$iterator 方法，无参数传入，并且返回的迭代器可以用来获取要迭代的值。
+    // 具体可以了解：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
   var $$iterator = typeof Symbol === 'function' && Symbol.iterator;
   if ($$iterator) {
     Collection.prototype[$$iterator] = Collection.prototype.values;
   }
 
-  // CollectionIterator
+  // CollectionIterator Collection迭代器
   // ------------------
 
   // A CollectionIterator implements JavaScript's Iterator protocol, allowing the
   // use of `for of` loops in modern browsers and interoperation between
   // Backbone.Collection and other JavaScript functions and third-party libraries
   // which can operate on Iterables.
+  // Collection迭代器 实现JavaScript的迭代器协议，允许在现代浏览器中使用`for of｀循环，并支持Backbone.Collection和其它 可以操作迭代的 JavaScript 函数以及第三方库进行互操作。
+
   var CollectionIterator = function(collection, kind) {
+    // 获得集合
     this._collection = collection;
+
+    // 迭代的方法 ????
     this._kind = kind;
     this._index = 0;
   };
@@ -1809,11 +1826,14 @@
   // This "enum" defines the three possible kinds of values which can be emitted
   // by a CollectionIterator that correspond to the values(), keys() and entries()
   // methods on Collection, respectively.
+  // ?????
+  // 这个“enum”定义了可以由CollectionIterator发出的三种可能的值，它们分别对应于Collection中的values()、keys()和entries()方法。
   var ITERATOR_VALUES = 1;
   var ITERATOR_KEYS = 2;
   var ITERATOR_KEYSVALUES = 3;
 
   // All Iterators should themselves be Iterable.
+  // 所有迭代器本身应可迭代。
   if ($$iterator) {
     CollectionIterator.prototype[$$iterator] = function() {
       return this;
@@ -1824,16 +1844,20 @@
     if (this._collection) {
 
       // Only continue iterating if the iterated collection is long enough.
+      // 如果迭代集合足够长，则只能继续迭代。
       if (this._index < this._collection.length) {
         var model = this._collection.at(this._index);
         this._index++;
 
         // Construct a value depending on what kind of values should be iterated.
+        // 根据应该迭代哪些类型的值构造一个值。
         var value;
+        // 如果迭代方法是 values();
         if (this._kind === ITERATOR_VALUES) {
           value = model;
         } else {
           var id = this._collection.modelId(model.attributes);
+          // 如果迭代方法是 keys();
           if (this._kind === ITERATOR_KEYS) {
             value = id;
           } else { // ITERATOR_KEYSVALUES
@@ -1845,6 +1869,7 @@
 
       // Once exhausted, remove the reference to the collection so future
       // calls to the next method always return done.
+      // 一旦耗尽，删除对集合的引用，所以将来调用下一个方法总是返回完成。
       this._collection = void 0;
     }
 
@@ -1885,10 +1910,12 @@
   };
 
   // Cached regex to split keys for `delegate`.
+  // 定义用于解析events参数中事件名称和元素的正则
   var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
   // List of view options to be set as properties.
   // 要设置为属性的视图选项列表。
+  // 记录一些列属性名, 在构造视图对象时, 如果传递的配置项中包含这些名称, 则将属性复制到对象本身
   var viewOptions = ['model', 'collection', 'el', 'id', 'attributes', 'className', 'tagName', 'events'];
 
   // Set up all inheritable **Backbone.View** properties and methods.
@@ -1980,14 +2007,31 @@
     // pairs. Callbacks will be bound to the view, with `this` set properly.
     // Uses event delegation for efficiency.
     // Omitting the selector binds the event to `this.el`.
+    // 为视图元素绑定事件
+    // events参数配置了需要绑定事件的集合, 格式如('事件名称 元素选择表达式' : '事件方法名称/或事件函数'):
+    // {
+    //     'click #title': 'edit',
+    //     'click .save': 'save'
+    //     'click span': function() {}
+    // }
+    // 该方法在视图对象初始化时会被自动调用, 并将对象中的events属性作为events参数(事件集合)
     delegateEvents: function(events) {
+      // 如果没有手动传递events参数, 则从视图对象获取events属性作为事件集合
       events || (events = _.result(this, 'events'));
       if (!events) return this;
+      // 取消当前已经绑定过的events事件
       this.undelegateEvents();
+      // 遍历需要绑定的事件列表
       for (var key in events) {
+        // 获取需要绑定的方法(允许是方法名称或函数)
         var method = events[key];
+        // 如果是方法名称, 则从对象中获取该函数对象, 因此该方法名称必须是视图对象中已定义的方法
         if (!_.isFunction(method)) method = this[method];
+        // 如果是无效的方法，则继续下一轮循环
         if (!method) continue;
+
+        // 解析事件表达式(key), 从表达式中解析出事件的名字和需要操作的元素
+        // 例如 'click #title'将被解析为 'click' 和 '#title' 两部分, 均存放在match数组中
         var match = key.match(delegateEventSplitter);
         this.delegate(match[1], match[2], _.bind(method, this));
       }
@@ -1997,6 +2041,7 @@
     // Add a single event listener to the view's element (or a child element
     // using `selector`). This only works for delegate-able events: not `focus`,
     // `blur`, and not `change`, `submit`, and `reset` in Internet Explorer.
+    // 将单个事件侦听器添加到视图的元素（或使用`selector`的子元素）。 这只适用于可委托的事件：在Internet Explorer中`focus`，`blur`，`change`，`submit`和`reset`是不适用的。
     delegate: function(eventName, selector, listener) {
       this.$el.on(eventName + '.delegateEvents' + this.cid, selector, listener);
       return this;
@@ -2005,6 +2050,7 @@
     // Clears all callbacks previously bound to the view by `delegateEvents`.
     // You usually don't need to use this, but may wish to if you have multiple
     // Backbone views attached to the same DOM element.
+    // 清除以前由“delegateEvents”绑定到视图的所有回调。 你通常不需要使用它，但如果您有多个Backbone视图连接到同一DOM元素，则可能会用。
     undelegateEvents: function() {
       if (this.$el) this.$el.off('.delegateEvents' + this.cid);
       return this;
@@ -2027,14 +2073,20 @@
     // If `this.el` is a string, pass it through `$()`, take the first
     // matching element, and re-assign it to `el`. Otherwise, create
     // an element from the `id`, `className` and `tagName` properties.
+    // 确保View具有要渲染的DOM元素。 如果`this.el`是一个字符串，传递通过`$（）`，取第一个匹配元素，然后重新分配给'el'。 否则，从“id”，“className”和“tagName”属性创建一个元素。
     _ensureElement: function() {
+      // 如果没有设置el属性, 则创建默认元素
       if (!this.el) {
+        // 从对象获取attributes属性, 作为新创建元素的默认属性列表
         var attrs = _.extend({}, _.result(this, 'attributes'));
+        // 设置新元素的id
         if (this.id) attrs.id = _.result(this, 'id');
+        // 设置新元素的class
         if (this.className) attrs['class'] = _.result(this, 'className');
         this.setElement(this._createElement(_.result(this, 'tagName')));
         this._setAttributes(attrs);
       } else {
+        // 如果设置了el属性, 则直接调用setElement方法将el元素设置为视图的标准元素
         this.setElement(_.result(this, 'el'));
       }
     },
