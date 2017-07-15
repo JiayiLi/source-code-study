@@ -1903,7 +1903,7 @@
     this.preinitialize.apply(this, arguments);
     // underscore _.pick(object, *keys)方法：返回一个object副本，只过滤出keys(有效的键组成的数组)参数指定的属性值。或者接受一个判断函数，指定挑选哪个key。
     _.extend(this, _.pick(options, viewOptions));
-    // 设置或创建视图中的元素
+    // 初始化dom元素和jQuery元素工作,设置或创建视图中的元素
     this._ensureElement();
     // 调用自定义的初始化方法
     this.initialize.apply(this, arguments);
@@ -2058,6 +2058,7 @@
 
     // A finer-grained `undelegateEvents` for removing a single delegated event.
     // `selector` and `listener` are both optional.
+    // 调用jQuery的off函数对事件进行解绑
     undelegate: function(eventName, selector, listener) {
       this.$el.off(eventName + '.delegateEvents' + this.cid, selector, listener);
       return this;
@@ -2065,6 +2066,7 @@
 
     // Produces a DOM element to be assigned to your view. Exposed for
     // subclasses using an alternative DOM manipulation API.
+    // 创建一个dom元素并且返回
     _createElement: function(tagName) {
       return document.createElement(tagName);
     },
@@ -2101,12 +2103,20 @@
 
   // Proxy Backbone class methods to Underscore functions, wrapping the model's
   // `attributes` object or collection's `models` array behind the scenes.
-  //
+  // 代理Backbone类方法到Underscore函数，将模型的“attributes”对象或集合的“models”数组包装在幕后。
+  // 
+  // 这个函数和下面的函数的作用是将underscore中的方法加入到具体的对象(实际上是类)中,后文中只有两次调用addUnderscoreMethods方法：一次是给model添加方法，一次是给collection添加方法
+  // 
+  // 例子
   // collection.filter(function(model) { return model.get('age') > 10 });
   // collection.each(this.addView);
   //
   // `Function#apply` can be slow so we use the method's arg count, if we know it.
+  // 
+  // apply 运行速度比call 慢，所以优先 选用 call，具体原因看 https://jiayili.gitbooks.io/fe-study-easier/content/javascript%E5%9F%BA%E7%A1%80/wei-shi-yao-call-bi-apply-kuai-ff1f.html
   var addMethod = function(base, length, method, attribute) {
+    //underscore中的一个比较好的设计是，在不同的方法中，如果参数个数相同，那么每一个参数代表的意义都是相同的
+    //所以这里我们仅仅根据参数个数进行区分即可
     switch (length) {
       case 1: return function() {
         return base[method](this[attribute]);
@@ -2135,13 +2145,19 @@
   };
 
   // Support `collection.sortBy('attr')` and `collection.findWhere({id: 1})`.
+  // 支持`collection.sortBy('attr')` 或者 `collection.findWhere({id: 1})` 这种调用方式.这个函数的作用是，由于underscore的迭代器要求都是函数，这里我们这样写处理掉了不是函数的情况.
   var cb = function(iteratee, instance) {
+    // 如果是函数
     if (_.isFunction(iteratee)) return iteratee;
+    // 如果是对象
     if (_.isObject(iteratee) && !instance._isModel(iteratee)) return modelMatcher(iteratee);
+    // 如果是字符串
     if (_.isString(iteratee)) return function(model) { return model.get(iteratee); };
     return iteratee;
   };
+
   var modelMatcher = function(attrs) {
+    // underscore _.matches(attrs) 返回一个断言函数，这个函数会给你一个断言 可以用来辨别 给定的对象是否匹配指定键/值属性的列表。
     var matcher = _.matches(attrs);
     return function(model) {
       return matcher(model.attributes);
@@ -2151,6 +2167,8 @@
   // Underscore methods that we want to implement on the Collection.
   // 90% of the core usefulness of Backbone Collections is actually implemented
   // right here:
+  // 我们要在Collection上实现的Underscore方法。 Backbone Collections的核心用途的90％实际上在这里实现：
+  // 混入了众多underscore方法
   var collectionMethods = {forEach: 3, each: 3, map: 3, collect: 3, reduce: 0,
       foldl: 0, inject: 0, reduceRight: 0, foldr: 0, find: 3, detect: 3, filter: 3,
       select: 3, reject: 3, every: 3, all: 3, some: 3, any: 3, include: 3, includes: 3,
@@ -2163,11 +2181,12 @@
 
   // Underscore methods that we want to implement on the Model, mapped to the
   // number of arguments they take.
+  // 我们要在Model上实现的Underscore方法，映射到它们所参数的数量。
   var modelMethods = {keys: 1, values: 1, pairs: 1, invert: 1, pick: 0,
       omit: 0, chain: 1, isEmpty: 1};
 
   // Mix in each Underscore method as a proxy to `Collection#models`.
-
+  // underscore _.each(list, iteratee, [context]) Alias: forEach  遍历list中的所有元素，按顺序用遍历输出每个元素。如果传递了context参数，则把iteratee绑定到context对象上。每次调用iteratee都会传递三个参数：(element, index, list)。如果list是个JavaScript对象，iteratee的参数是 (value, key, list))。返回list以方便链式调用。
   _.each([
     [Collection, collectionMethods, 'models'],
     [Model, modelMethods, 'attributes']
@@ -2177,6 +2196,9 @@
         attribute = config[2];
 
     Base.mixin = function(obj) {
+      // underscore _.reduce :(list, iteratee, [memo], [context]) Aliases: inject, foldl 别名为 inject 和 foldl, reduce方法把list中元素归结为一个单独的数值。Memo是reduce函数的初始值，reduce的每一步都需要由iteratee返回。这个迭代传递4个参数：memo,value 和 迭代的index（或者 key）和最后一个引用的整个 list。如果没有memo传递给reduce的初始调用，iteratee不会被列表中的第一个元素调用。第一个元素将取代 传递给列表中下一个元素调用iteratee的memo参数。
+      // 例子：var sum = _.reduce([1, 2, 3], function(memo, num){ return memo + num; }, 0);
+      // => 6
       var mappings = _.reduce(_.functions(obj), function(memo, name) {
         memo[name] = 0;
         return memo;
@@ -2187,13 +2209,19 @@
     addUnderscoreMethods(Base, _, methods, attribute);
   });
 
-  // Backbone.sync
+  // Backbone.sync   同步服务器需要的函数
   // -------------
 
   // Override this function to change the manner in which Backbone persists
   // models to the server. You will be passed the type of request, and the
   // model in question. By default, makes a RESTful Ajax request
   // to the model's `url()`. Some possible customizations could be:
+  // 
+  // 覆盖此功能以更改Backbone将models持续到服务器的方式。你需要传递 request 的类型以及有问题的 model。默认情况下，一个 RESTful Ajax 请求会调用 model 的 url() 方法。一些可能的使用场景：
+  // 1、使用 setTimeout 将快速更新 批量导入到单个请求中。
+  // 2、发送 XML 形式的 model
+  // 3、通过WebSockets而不是Ajax来持久化模型。
+  // 
   //
   // * Use `setTimeout` to batch rapid-fire updates into a single request.
   // * Send up the models as XML instead of JSON.
@@ -2205,30 +2233,44 @@
   // instead of `application/json` with the model in a param named `model`.
   // Useful when interfacing with server-side languages like **PHP** that make
   // it difficult to read the body of `PUT` requests.
+  // 
+  // emulateHTTP:如果你想在不支持Backbone的默认REST/ HTTP方式的Web服务器上工作，您可以选择开启Backbone.emulateHTTP。 设置该选项将通过 POST 方法伪造 PUT，PATCH和 DELETE 请求 用真实的方法设定X-HTTP-Method-Override头信息。
+  // 
+  // emulateJSON:如果你想在不支持发送 application/json 编码请求的Web服务器上工作，设置Backbone.emulateJSON = true;将导致JSON根据模型参数进行序列化， 并通过application/x-www-form-urlencoded MIME类型来发送一个伪造HTML表单请求
   Backbone.sync = function(method, model, options) {
+    // 根据CRUD方法名定义与服务器交互的方法(POST, GET, PUT, DELETE)
     var type = methodMap[method];
 
     // Default options, unless specified.
+    // 如果未被定义，就是用默认options
     _.defaults(options || (options = {}), {
       emulateHTTP: Backbone.emulateHTTP,
       emulateJSON: Backbone.emulateJSON
     });
 
     // Default JSON-request options.
+    // 默认JSON-request选项
     var params = {type: type, dataType: 'json'};
 
     // Ensure that we have a URL.
+    // 确保我们有一个 可以请求的 URL
     if (!options.url) {
+      // 获取请求地址失败时会调用urlError方法抛出一个错误
       params.url = _.result(model, 'url') || urlError();
     }
 
     // Ensure that we have the appropriate request data.
+    // 确保我们有一个 合适的请求数据
+    // 如果调用create和update方法, 且没有在options中定义请求数据, 将序列化模型中的数据对象传递给服务器
     if (options.data == null && model && (method === 'create' || method === 'update' || method === 'patch')) {
+      // 定义请求的Content-Type头, 默认为application/json
       params.contentType = 'application/json';
+      // 序列化模型中的数据, 并作为请求数据传递给服务器
       params.data = JSON.stringify(options.attrs || model.toJSON(options));
     }
 
     // For older servers, emulate JSON by encoding the request into an HTML-form.
+    // 对于较老的服务器，通过将请求编码成html格式来模拟JSON。
     if (options.emulateJSON) {
       params.contentType = 'application/x-www-form-urlencoded';
       params.data = params.data ? {model: params.data} : {};
@@ -2236,6 +2278,7 @@
 
     // For older servers, emulate HTTP by mimicking the HTTP method with `_method`
     // And an `X-HTTP-Method-Override` header.
+    // 如果不支持Backbone的默认REST/ HTTP方式,那么统一用post来实现
     if (options.emulateHTTP && (type === 'PUT' || type === 'DELETE' || type === 'PATCH')) {
       params.type = 'POST';
       if (options.emulateJSON) params.data._method = type;
@@ -2247,7 +2290,10 @@
     }
 
     // Don't process data on a non-GET request.
+    // 在非get请求上,将不对数据进行转换, 因为传递的数据可能是一个JSON映射
     if (params.type !== 'GET' && !options.emulateJSON) {
+      // 通过设置processData为false来关闭数据转换
+      // processData参数是$.ajax方法中的配置参数, 详细信息可参考jQuery或Zepto相关文档
       params.processData = false;
     }
 
@@ -2260,12 +2306,14 @@
     };
 
     // Make the request, allowing the user to override any Ajax options.
+    // 发出请求，允许用户覆盖任何Ajax选项。
     var xhr = options.xhr = Backbone.ajax(_.extend(params, options));
     model.trigger('request', model, xhr, options);
     return xhr;
   };
 
   // Map from CRUD to HTTP for our default `Backbone.sync` implementation.
+  // 从CRUD映射到HTTP，用于默认的`Backbone.sync` 的实现。
   var methodMap = {
     'create': 'POST',
     'update': 'PUT',
@@ -2276,12 +2324,20 @@
 
   // Set the default implementation of `Backbone.ajax` to proxy through to `$`.
   // Override this if you'd like to use a different library.
+  // 将“Backbone.ajax”的默认实现设置代理到“$”。
+  //如果您想使用其他库，请覆盖此方法。
   Backbone.ajax = function() {
     return Backbone.$.ajax.apply(Backbone.$, arguments);
   };
 
-  // Backbone.Router
+  // Backbone.Router Backbone的路由部分,这部分被认为是backbone的MVC结构中的被弱化的controller
   // ---------------
+  // 
+  // 我们在使用的时候，通常会赋值一个这样的routes:
+  // routes:{
+  //         "article/:id":"getArticleById",
+  //         "article":"getlist"
+  // },
 
   // Routers map faux-URLs to actions, and fire events when routes are
   // matched. Creating a new one sets its `routes` hash, if not set statically.
