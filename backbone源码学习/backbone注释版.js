@@ -2341,11 +2341,19 @@
 
   // Routers map faux-URLs to actions, and fire events when routes are
   // matched. Creating a new one sets its `routes` hash, if not set statically.
+  // 在创建Router实例时, 通过options.routes来设置某个路由规则对应的监听方法
+  // options.routes中的路由规则按照 {规则名称: 方法名称}进行组织, 每一个路由规则所对应的方法, 都必须是在Router实例中的已经声明的方法
+  // options.routes定义的路由规则按照先后顺序进行匹配, 如果当前URL能被多个规则匹配, 则只会执行第一个匹配的事件方法
   var Router = Backbone.Router = function(options) {
     options || (options = {});
+    // 提前初始化
     this.preinitialize.apply(this, arguments);
+    // 如果在options中设置了routes对象(路由规则), 则赋给当前实例的routes属性
+    // routes属性记录了路由规则与事件方法的绑定关系, 当URL与某一个规则匹配时, 会自动调用关联的事件方法
     if (options.routes) this.routes = options.routes;
+    // 解析和绑定路由规则
     this._bindRoutes();
+    // 调用自定义的初始化方法
     this.initialize.apply(this, arguments);
   };
 
