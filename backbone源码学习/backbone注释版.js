@@ -1633,6 +1633,7 @@
     },
 
     // Create a new collection with an identical list of models as this one.
+    // 创建一个与此相同的models列表的新集合。
     clone: function() {
       return new this.constructor(this.models, {
         model: this.model,
@@ -1641,6 +1642,7 @@
     },
 
     // Define how to uniquely identify models in the collection.
+    // 定义如何在集合中惟一地标识模型。
     modelId: function(attrs) {
       return attrs[this.model.prototype.idAttribute || 'id'];
     },
@@ -1652,6 +1654,7 @@
     },
 
     // Get an iterator of all model IDs in this collection.
+    // 在这个集合中获取所有模型id的迭代器。
     keys: function() {
       return new CollectionIterator(this, ITERATOR_KEYS);
     },
@@ -2359,21 +2362,36 @@
 
   // Cached regular expressions for matching named param parts and splatted
   // parts of route strings.
+  // 定义用于将字符串形式的路由规则, 转换为可执行的正则表达式规则时的查找条件
+  // 
   var optionalParam = /\((.*?)\)/g;
+
+  // 匹配一个URL片段中(以/"斜线"为分隔)的动态路由规则
+  // 如: (topic/:id) 匹配 (topic/1228), 监听事件function(id) { // id为1228 }
   var namedParam    = /(\(\?)?:\w+/g;
+
+  // 匹配整个URL片段中的动态路由规则
+  // 如: (topic*id) 匹配 (url#/topic1228), 监听事件function(id) { // id为1228 }
   var splatParam    = /\*\w+/g;
+
+  // 匹配URL片段中的特殊字符, 并在字符前加上转义符, 防止特殊字符在被转换为正则表达式后变成元字符
+  // 如: (abc)^[,.] 将被转换为 \(abc\)\^\[\,\.\]
   var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
 
   // Set up all inheritable **Backbone.Router** properties and methods.
+  // 向Router类的原型对象中扩展属性和方法
   _.extend(Router.prototype, Events, {
 
     // preinitialize is an empty function by default. You can override it with a function
     // or object.  preinitialize will run before any instantiation logic is run in the Router.
+    // 默认为空函数，可以重写，在路由器中运行任何实例化逻辑之前，preinitialize将先运行。
     preinitialize: function(){},
 
     // Initialize is an empty function by default. Override it with your own
     // initialization logic.
+    // 自定义初始化方法, 在路由器Router实例化后被自动调用
     initialize: function(){},
+
 
     // Manually bind a single named route to a callback. For example:
     //
@@ -2381,20 +2399,53 @@
     //       ...
     //     });
     //
+    // 将一个路由规则绑定给一个监听事件, 当URL片段匹配该规则时, 会自动调用触发该事件。例如：
+    //     this.route('search/:query/p:num', 'search', function(query, num) {
+    //       ...
+    //     });
     route: function(route, name, callback) {
+      // 检查route规则名称是否为一个字符串(当手动调用route方法创建路由规则时, 允许传递一个正则表达式或字符串作为规则)
+      // 在构造Router实例时传入options.routes中的规则, 都应该是一个字符串(因为在_bindRoutes方法中将routes配置中的key作为路由规则)
+      // 如果传入的是字符串类型的路由规则, 通过_routeToRegExp方法将其转换为一个正则表达式, 用于匹配URL片段
       if (!_.isRegExp(route)) route = this._routeToRegExp(route);
+      // 如果name是个函数，那么它就是回调，name置为空
       if (_.isFunction(name)) {
         callback = name;
         name = '';
       }
+
+      // 如果还是没有callback(事件方法), 则根据name从当前Router实例中获取与name同名的方法
+      // 这是因为在手动调用route方法时可能不会传递callback方法, 但必须传递name事件名称, 并在Router实例中已经定义了该方法
       if (!callback) callback = this[name];
+      
+      // 将当前 this 赋值给 router
       var router = this;
+
+      // 调用history实例的route方法, 该方法会将转换后的正则表达式规则, 和监听事件方法绑定到history.handlers列表中, 以便history进行路由和控制
+      // 当history实例匹配到对应的路由规则而调用该事件时, 会将URL片段作为字符串(即fragment参数)传递给该事件方法
+      // 这里并没有直接将监听事件传递给history的route方法, 而是使用bind方法封装了另一个函数, 该函数的执行上下文为当前Router对象
       Backbone.history.route(route, function(fragment) {
+        // 调用_extractParameters方法获取匹配到的规则中的参数
         var args = router._extractParameters(route, fragment);
         if (router.execute(callback, args, name) !== false) {
+          // 触发route:name事件, name为调用route时传递的事件名称
+          // 如果对当前Router实例使用on方法绑定了route:name事件, 则会收到该事件的触发通知
           router.trigger.apply(router, ['route:' + name].concat(args));
           router.trigger('route', name, args);
+          // 触发history实例中绑定的route事件, 当路由器匹配到任何规则时, 均会触发该事件
           Backbone.history.trigger('route', router, name, args);
+          /**
+             * 事件绑定如:
+             * var router = new MyRouter();
+             * router.on('route:routename', function(param) {
+             *     // 绑定到Router实例中某个规则的事件, 当匹配到该规则时触发
+             * });
+             * Backbone.history.on('route', function(router, name, args) {
+             *     // 绑定到history实例中的事件, 当匹配到任何规则时触发
+             * });
+             * Backbone.history.start();
+          **/
+
         }
       });
       return this;
@@ -2407,7 +2458,9 @@
     },
 
     // Simple proxy to `Backbone.history` to save a fragment into the history.
+    // 通过调用history.navigate方法, 手动设置跳转到URL
     navigate: function(fragment, options) {
+      // 代理到history实例的navigate方法
       Backbone.history.navigate(fragment, options);
       return this;
     },
@@ -2415,9 +2468,13 @@
     // Bind all defined routes to `Backbone.history`. We have to reverse the
     // order of the routes here to support behavior where the most general
     // routes can be defined at the bottom of the route map.
+    // 解析当前实例定义的路由(this.routes)规则, 并调用route方法将每一个规则绑定到对应的方法
     _bindRoutes: function() {
+      // 如果在创建对象时没有设置routes规则, 则不进行解析和绑定
       if (!this.routes) return;
+      // underscore _.result(object, property) 如果对象 object 中的属性 property 是函数, 则调用它, 否则, 返回它。
       this.routes = _.result(this, 'routes');
+      // underscore _.keys(object) 获取object对象所有的属性名称。
       var route, routes = _.keys(this.routes);
       while ((route = routes.pop()) != null) {
         this.route(route, this.routes[route]);
@@ -2426,19 +2483,36 @@
 
     // Convert a route string into a regular expression, suitable for matching
     // against the current location hash.
+    // 将字符串形式的路由规则转换为正则表达式对象
+    // (在route方法中检查到字符串类型的路由规则后, 会自动调用该方法进行转换)
     _routeToRegExp: function(route) {
-      route = route.replace(escapeRegExp, '\\$&')
+      // 为字符串中特殊字符添加转义符, 防止特殊字符在被转换为正则表达式后变成元字符(这些特殊字符包括-[\]{}()+?.,\\^$|#\s)
+      // 将字符串中以/"斜线"为分隔的动态路由规则转换为([^\/]+), 在正则中表示以/"斜线"开头的多个字符
+      // 将字符串中的*"星号"动态路由规则转换为(.*?), 在正则中表示0或多个任意字符(这里使用了非贪婪模式, 因此你可以使用例如这样的组合路由规则: *list/:id, 将匹配 orderlist/123 , 同时会将"order"和"123"作为参数传递给事件方法 )
+      // 请注意namedParam和splatParam替换后的正则表达式都是用()括号将匹配的内容包含起来, 这是为了方便取出匹配的内容作为参数传递给事件方法
+      // 请注意namedParam和splatParam匹配的字符串 :str, *str中的str字符串是无意义的, 它们会在下面替换后被忽略, 但一般写作和监听事件方法的参数同名, 以便进行标识
+      route = route.replace(escapeRegExp, '\\$&') //这个匹配的目的是将正则表达式字符进行转义
                    .replace(optionalParam, '(?:$1)?')
                    .replace(namedParam, function(match, optional) {
                      return optional ? match : '([^/?]+)';
                    })
                    .replace(splatParam, '([^?]*?)');
+      // 将转换后的字符串创建为正则表达式对象并返回
+      // 这个正则表达式将根据route字符串中的规则, 用于匹配URL片段
       return new RegExp('^' + route + '(?:\\?([\\s\\S]*))?$');
     },
 
     // Given a route, and a URL fragment that it matches, return the array of
     // extracted decoded parameters. Empty or unmatched parameters will be
     // treated as `null` to normalize cross-browser behavior.
+    // 
+    // 传入一个路由规则(正则表达式)和URL片段(字符串)进行匹配, 并返回从匹配的字符串中获取参数
+    /**
+     * 例如路由规则为 'teams/:type/:id', 对应的正则表达式会被转换为/^teams/([^/]+)/([^/]+)$/ , (对路由规则转换为正则表达式的过程可参考_routeToRegExp方法)
+     * URL片段为 'teams/35/1228'
+     * 则通过exec执行后的结果为 ["teams/35/1228", "35", "1228"]
+     * 数组中的一个元素是URL片段字符串本身, 从第二个开始则依次为路由规则表达式中的参数
+     */
     _extractParameters: function(route, fragment) {
       var params = route.exec(fragment).slice(1);
       return _.map(params, function(param, i) {
@@ -2450,8 +2524,13 @@
 
   });
 
-  // Backbone.History
+  // Backbone.History 路由器管理
   // ----------------
+  // 
+  // Backbone的history是通过绑定hashchange事件的监听来监听网页url的变化(通过popstate和onhashchange事件进行监听, 对于不支持事件的浏览器通过setInterval心跳监控),从而调用相关函数
+  // 另外，在不支持hashchange事件的浏览器中,采用轮询的方式
+  // 
+  // History一般不会被直接调用, 在第一次实例化Router对象时, 将自动创建一个History的单例(通过Backbone.history访问)
 
   // Handles cross-browser history management, based on either
   // [pushState](http://diveintohtml5.info/history.html) and real URLs, or
@@ -2459,7 +2538,17 @@
   // and URL fragments. If the browser supports neither (old IE, natch),
   // falls back to polling.
   var History = Backbone.History = function() {
+
+    // handlers属性记录了当前所有路由对象中已经设置的规则和监听列表
+    // 形式如: [{route: route, callback: callback}], route记录了正则表达式规则, callback记录了匹配规则时的监听事件
+    // 当history对象监听到URL发生变化时, 会自动与handlers中定义的规则进行匹配, 并调用监听事件
     this.handlers = [];
+
+    // 将checkUrl方法的上下文对象绑定到history对象, 因为checkUrl方法被作为popstate和onhashchange事件或setInterval的回调函数, 在执行回调时, 上下文对象会被改变
+    // checkUrl方法用于在监听到URL发生变化时检查并调用loadUrl方法
+    // 
+    // underscore _.bind(function, object, *arguments) 绑定函数 function 到对象 object 上, 也就是无论何时调用函数, 函数里的 this 都指向这个 object. 任意可选参数 arguments 可以传递给函数 function , 可以填充函数所需要的参数, 这也被称为 partial application。对于没有结合上下文的partial application绑定，请使用partial。 
+    // 
     this.checkUrl = _.bind(this.checkUrl, this);
 
     // Ensure that `History` can be used outside of the browser.
