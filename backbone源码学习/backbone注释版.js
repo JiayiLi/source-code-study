@@ -2559,25 +2559,33 @@
   };
 
   // Cached regex for stripping a leading hash/slash and trailing space.
+  // 修正作用，去除结尾的#或/以及多余的空白符(包括\n,\r,\f,\t,\v)
   var routeStripper = /^[#\/]|\s+$/g;
 
   // Cached regex for stripping leading and trailing slashes.
+  // 匹配开头的一个或多个`/`以及结尾的一个或者多个`/`
   var rootStripper = /^\/+|\/+$/g;
 
   // Cached regex for stripping urls of hash.
   var pathStripper = /#.*$/;
 
   // Has the history handling already been started?
+  // 记录当前history单例对象是否已经被初始化过(调用start方法)
   History.started = false;
 
   // Set up all inheritable **Backbone.History** properties and methods.
+  // 向History类的原型对象中添加方法, 这些方法可以通过History的实例调用(即Backbone.history对象)
   _.extend(History.prototype, Events, {
 
     // The default interval to poll for hash changes, if necessary, is
     // twenty times a second.
+    // 当用户使用低版本的IE浏览器(不支持onhashchange事件)时, 通过心跳监听路由状态的变化
+    // interval属性设置心跳频率(毫秒), 该频率如果太低可能会导致延迟, 如果太高可能会消耗CPU资源(需要考虑用户使用低端浏览器时的设备配置)
     interval: 50,
 
     // Are we at the app root?
+    // 如果处于根节点那么this.location.pathname获取到的应该是`/`
+    // 另外这里用到了getSearch来获取?后面的内容,如果能获取到自然说明并不是在根节点
     atRoot: function() {
       var path = this.location.pathname.replace(/[^\/]$/, '$&/');
       return path === this.root && !this.getSearch();
@@ -2593,12 +2601,14 @@
     // Unicode characters in `location.pathname` are percent encoded so they're
     // decoded for comparison. `%25` should not be decoded since it may be part
     // of an encoded parameter.
+    // %被编码后恰好是%25,这里十分巧妙的解决了防止fragment两次编码的问题
     decodeFragment: function(fragment) {
       return decodeURI(fragment.replace(/%25/g, '%2525'));
     },
 
     // In IE6, the hash fragment and search params are incorrect if the
     // fragment contains `?`.
+    // 取得?以及其后面的内容
     getSearch: function() {
       var match = this.location.href.replace(/#.*/, '').match(/\?.+/);
       return match ? match[0] : '';
@@ -2606,12 +2616,14 @@
 
     // Gets the true hash value. Cannot use location.hash directly due to bug
     // in Firefox where location.hash will always be decoded.
+    // 获取location中Hash字符串(锚点#后的片段)
     getHash: function(window) {
       var match = (window || this).location.href.match(/#(.*)$/);
       return match ? match[1] : '';
     },
 
     // Get the pathname and search params, without the root.
+    // 返回除了哈希以外的所有内容
     getPath: function() {
       var path = this.decodeFragment(
         this.location.pathname + this.getSearch()
@@ -2620,6 +2632,7 @@
     },
 
     // Get the cross-browser normalized URL fragment from the path or hash.
+    // 从路径或哈希中获取跨浏览器的规范化URL片段。
     getFragment: function(fragment) {
       if (fragment == null) {
         if (this._usePushState || !this._wantsHashChange) {
@@ -2633,20 +2646,63 @@
 
     // Start the hash change handling, returning `true` if the current URL matches
     // an existing route, and `false` otherwise.
+    // 初始化History实例, 该方法只会被调用一次, 应该在创建并初始化Router对象之后被自动调用
+    // 该方法作为整个路由的调度器, 它将针对不同浏览器监听URL片段的变化, 负责验证并通知到监听函数
     start: function(options) {
+      // 如果history对象已经被初始化过, 则抛出错误
       if (History.started) throw new Error('Backbone.history has already been started');
+      // 设置history对象的初始化状态
       History.started = true;
 
       // Figure out the initial configuration. Do we need an iframe?
       // Is pushState desired ... is it available?
+      // 设置配置项, 使用调用start方法时传递的options配置项覆盖默认配置
+      // root属性设置URL导航中的路由根目录
+      // 如果使用pushState方式进行路由, 则root目录之后的地址会根据不同的路由产生不同的地址(这可能会定位到不同的页面, 因此需要确保服务器支持)
+      // 如果使用Hash锚点的方式进行路由, 则root表示URL后锚点(#)的位置
       this.options          = _.extend({root: '/'}, this.options, options);
+
+
+      /**
+             * history针对不同浏览器特性, 实现了3种方式的监听:
+             * - 对于支持HTML5中popstate事件的浏览器, 通过popstate事件进行监听
+             * - 对于不支持popstate的浏览器, 使用onhashchange事件进行监听(通过改变hash(锚点)设置的URL在被载入时会触发onhashchange事件)
+             * - 对于不支持popstate和onhashchange事件的浏览器, 通过保持心跳监听
+             *
+             * 关于HTML5中popstate事件的相关方法:
+             * - pushState可以将指定的URL添加一个新的history实体到浏览器历史里
+             * - replaceState方法可以将当前的history实体替换为指定的URL
+             * 使用pushState和replaceState方法时仅替换当前URL, 而并不会真正转到这个URL(当使用后退或前进按钮时, 也不会跳转到该URL)
+             * (这两个方法可以解决在AJAX单页应用中浏览器前进, 后退操作的问题)
+             * 当使用pushState或replaceState方法替换的URL, 在被载入时会触发onpopstate事件
+             * 浏览器支持情况:
+             * Chrome 5, Firefox 4.0, IE 10, Opera 11.5, Safari 5.0
+             *
+             * 注意:
+             * - history.start方法默认使用Hash方式进行导航
+             * - 如果需要启用pushState方式进行导航, 需要在调用start方法时, 手动传入配置options.pushState
+             *   (设置前请确保浏览器支持pushState特性, 否则将默认转换为Hash方式)
+             * - 当使用pushState方式进行导航时, URL可能会从options.root指定的根目录后发生变化, 这可能会导航到不同页面, 因此请确保服务器已经支持pushState方式的导航
+      */
+
       this.root             = this.options.root;
+
+      // _wantsHashChange属性记录是否希望使用hash(锚点)的方式来记录和导航路由器
+      // 除非在options配置项中手动设置hashChange为false, 否则默认将使用hash锚点的方式
+      // (如果手动设置了options.pushState为true, 且浏览器支持pushState特性, 则会使用pushState方式)
       this._wantsHashChange = this.options.hashChange !== false;
+      //documentMode 属性返回浏览器渲染文档的模式,仅仅IE支持,这里要求>7或者是未定义,也就是说对IE7以下是不支持的
       this._hasHashChange   = 'onhashchange' in window && (document.documentMode === void 0 || document.documentMode > 7);
       this._useHashChange   = this._wantsHashChange && this._hasHashChange;
+      // _wantsPushState属性记录是否希望使用pushState方式来记录和导航路由器
+      // pushState是HTML5中为window.history添加的新特性, 如果没有手动声明options.pushState为true, 则默认将使用hash方式
       this._wantsPushState  = !!this.options.pushState;
+      // _hasPushState属性记录浏览器是否支持pushState特性
+      // 如果在options中设置了pushState(即希望使用pushState方式), 则检查浏览器是否支持该特性
       this._hasPushState    = !!(this.history && this.history.pushState);
+      //显式声明了pushState为true并且拥有这个能力,才会使用
       this._usePushState    = this._wantsPushState && this._hasPushState;
+      // 获取当前URL中的路由字符串
       this.fragment         = this.getFragment();
 
       // Normalize root to always include a leading and trailing slash.
@@ -2658,6 +2714,7 @@
 
         // If we've started off with a route from a `pushState`-enabled
         // browser, but we're currently in a browser that doesn't support it...
+        // 如果我们显式声明了pushState为true但是却在一个并不支持的浏览器,那么这个时候直接先替换location
         if (!this._hasPushState && !this.atRoot()) {
           var rootPath = this.root.slice(0, -1) || '/';
           this.location.replace(rootPath + '#' + this.getPath());
@@ -2675,7 +2732,10 @@
       // Proxy an iframe to handle location events if the browser doesn't
       // support the `hashchange` event, HTML5 history, or the user wants
       // `hashChange` but not `pushState`.
+      // 在IE中,无论iframe是一开始静态写在html中的还是后来用js动态创建的,都可以被写入浏览器的历史记录
       if (!this._hasHashChange && this._wantsHashChange && !this._usePushState) {
+        // 如果用户使用低版本的IE浏览器, 不支持popstate和onhashchange事件
+        // 向DOM中插入一个隐藏的iframe, 并通过改变和心跳监听该iframe的URL实现路由
         this.iframe = document.createElement('iframe');
         this.iframe.src = 'javascript:0';
         this.iframe.style.display = 'none';
@@ -2683,7 +2743,9 @@
         var body = document.body;
         // Using `appendChild` will throw on IE < 9 if the document is not ready.
         var iWindow = body.insertBefore(this.iframe, body.firstChild).contentWindow;
+        //document.open():打开一个新文档，即打开一个流，并擦除当前文档的内容。
         iWindow.document.open();
+        //close()方法可关闭一个由open()方法打开的输出流，并显示选定的数据。
         iWindow.document.close();
         iWindow.location.hash = '#' + this.fragment;
       }
@@ -2696,18 +2758,24 @@
       // Depending on whether we're using pushState or hashes, and whether
       // 'onhashchange' is supported, determine how we check the URL state.
       if (this._usePushState) {
+        //当前活动历史项(history entry)改变会触发popstate事件，这个时候显然不用在监听hashchange事件了
         addEventListener('popstate', this.checkUrl, false);
       } else if (this._useHashChange && !this.iframe) {
+        //onhashchange 事件在当前 URL 的锚部分(以 '#' 号为开始) 发生改变时触发,IE8以上支持,其他浏览器支持较好
         addEventListener('hashchange', this.checkUrl, false);
       } else if (this._wantsHashChange) {
         this._checkUrlInterval = setInterval(this.checkUrl, this.interval);
       }
-
+      // 一般调用start方法时会自动调用loadUrl, 匹配当前URL片段对应的路由规则, 调用该规则的方法
+      // 如果设置了silent属性为true, 则loadUrl方法不会被调用
+      // 这种情况一般出现在调用了stop方法重置history对象状态后, 再次调用start方法启动(实际上此时并非为页面初始化, 因此会设置silent属性)
       if (!this.options.silent) return this.loadUrl();
     },
 
     // Disable Backbone.history, perhaps temporarily. Not useful in a real app,
     // but possibly useful for unit testing Routers.
+    // 停止history对路由的监控, 并将状态恢复为未监听状态
+    // 调用stop方法之后, 可重新调用start方法开始监听, stop方法一般用户在调用start方法之后, 需要重新设置start方法的参数, 或用于单元测试
     stop: function() {
       // Add a cross-platform `removeEventListener` shim for older browsers.
       var removeEventListener = window.removeEventListener || function(eventName, listener) {
@@ -2722,6 +2790,7 @@
       }
 
       // Clean up the iframe if necessary.
+      // 如果必要的话移除 iframe 元素
       if (this.iframe) {
         document.body.removeChild(this.iframe);
         this.iframe = null;
@@ -2734,33 +2803,54 @@
 
     // Add a route to be tested when the fragment changes. Routes added later
     // may override previous routes.
+    // 向handlers中绑定一个路由规则(参数route, 类型为正则表达式)与事件(参数callback)的映射关系(该方法由Router的实例自动调用)
     route: function(route, callback) {
+      // 将route和callback插入到handlers列表的第一个位置
+      // 这是为了确保最后调用route时传入的规则被优先进行匹配
       this.handlers.unshift({route: route, callback: callback});
     },
 
     // Checks the current URL to see if it has changed, and if it has,
     // calls `loadUrl`, normalizing across the hidden iframe.
+    // 检查当前的URL相对上一次的状态是否发生了变化
+    // 如果发生变化, 则记录新的URL状态, 并调用loadUrl方法触发新URL与匹配路由规则的方法
+    // 该方法在onpopstate和onhashchange事件被触发后自动调用, 或者在低版本的IE浏览器中由setInterval心跳定时调用
     checkUrl: function(e) {
+      // 获取当前的URL片段
       var current = this.getFragment();
 
       // If the user pressed the back button, the iframe's hash will have
       // changed and we should use that for comparison.
+      // 对低版本的IE浏览器, 将从iframe中获取最新的URL片段并赋给current变量
       if (current === this.fragment && this.iframe) {
         current = this.getHash(this.iframe.contentWindow);
       }
-
+      // 如果当前URL与上一次的状态没有发生任何变化, 则停止执行
       if (current === this.fragment) return false;
+      // 执行到这里, URL已经发生改变, 调用navigate方法将URL设置为当前URL
+      // 这里在自动调用navigate方法时, 并没有传递options参数, 因此不会触发navigate方法中的loadUrl方法
       if (this.iframe) this.navigate(current);
+      // 调用loadUrl方法, 检查匹配的规则, 并执行规则绑定的方法
+      // 如果调用this.loadUrl方法没有成功, 则试图在调用loadUrl方法时, 将重新获取的当前Hash传递给该方法
       this.loadUrl();
     },
 
     // Attempt to load the current URL fragment. If a route succeeds with a
     // match, returns `true`. If no defined routes matches the fragment,
     // returns `false`.
+    // 根据当前URL, 与handler路由列表中的规则进行匹配
+    // 如果URL符合某一个规则, 则执行这个规则所对应的方法, 函数将返回true
+    // 如果没有找到合适的规则, 将返回false
+    // loadUrl方法一般在页面初始化时调用start方法会被自动调用(除非设置了silent参数为true)
+    // - 或当用户改变URL后, 由checkUrl监听到URL发生变化时被调用
+    // - 或当调用navigate方法手动导航到某个URL时被调用
     loadUrl: function(fragment) {
       // If the root doesn't match, no routes can match either.
       if (!this.matchRoot()) return false;
+      // 获取当前URL片段
       fragment = this.fragment = this.getFragment(fragment);
+
+      // underscore _.some(list, [predicate], [context]) 别名： any 如果list中有任何一个元素通过 predicate 的真值检测就返回true。一旦找到了符合条件的元素, 就直接中断对list的遍历. （注：如果存在原生的some方法，就使用原生的some。）
       return _.some(this.handlers, function(handler) {
         if (handler.route.test(fragment)) {
           handler.callback(fragment);
@@ -2776,8 +2866,13 @@
     // The options object can contain `trigger: true` if you wish to have the
     // route callback be fired (not usually desirable), or `replace: true`, if
     // you wish to modify the current URL without adding an entry to the history.
+    // 导航到指定的URL
+    // 如果在options中设置了trigger, 将触发导航的URL与对应路由规则的事件
+    // 如果在options中设置了replace, 将使用需要导航的URL替换当前的URL在history中的位置
     navigate: function(fragment, options) {
+      // 如果没有调用start方法, 或已经调用stop方法, 则无法导航
       if (!History.started) return false;
+      // 如果options参数不是一个对象, 而是true值, 则默认trigger配置项为true(即触发导航的URL与对应路由规则的事件)
       if (!options || options === true) options = {trigger: !!options};
 
       // Normalize the fragment.
@@ -2791,16 +2886,25 @@
       var url = rootPath + fragment;
 
       // Strip the fragment of the query and hash for matching.
+      /*
+        去除#及以后的内容，注意这里的fragment并不是this.fragment，这里只是为了方便下文判断用，所以用了这么一个变量
+        另外这里有两个非常值得注意的地方
+          1.如果是在_usePushState情况下调用，那么这个时候哈希值实际上是不用的，所以这一步骤是没错的
+          2.如果是在使用哈希值的情况下进行调用，fragment这个时候实际上已经是转换好的哈希值了，所以这一步骤并不会改变
+          它什么，也不会把它变没。
+      */ 
       fragment = fragment.replace(pathStripper, '');
 
       // Decode for matching.
       var decodedFragment = this.decodeFragment(fragment);
 
+      // 如果没有变化，则不进行下文操作
       if (this.fragment === decodedFragment) return;
       this.fragment = decodedFragment;
 
       // If pushState is available, we use it to set the fragment as a real URL.
       if (this._usePushState) {
+        //调用浏览器提供的history接口，可以压入或更新一条历史记录
         this.history[options.replace ? 'replaceState' : 'pushState']({}, document.title, url);
 
       // If hash changes haven't been explicitly disabled, update the hash
@@ -2813,30 +2917,47 @@
           // Opening and closing the iframe tricks IE7 and earlier to push a
           // history entry on hash-tag change.  When replace is true, we don't
           // want this.
+          // 在IE7及以下的情况通过这种方式写入历史记录
+          // 如果使用了replace参数替换当前URL, 则直接将iframe替换为新的文档
+          // 调用document.open打开一个新的文档, 以擦除当前文档中的内容(这里调用close方法是为了关闭文档的状态)
+          // open和close方法之间没有使用write或writeln方法输出内容, 因此这是一个空文档
           if (!options.replace) {
             iWindow.document.open();
             iWindow.document.close();
           }
-
+          // 调用_updateHash方法更新iframe中的URL
           this._updateHash(iWindow.location, fragment, options.replace);
         }
 
       // If you've told us that you explicitly don't want fallback hashchange-
       // based history, then `navigate` becomes a page refresh.
       } else {
+        // 如果在调用start方法时, 手动设置hashChange参数为true, 不希望使用pushState和hash方式导航
+        // 则直接将页面跳转到新的URL
         return this.location.assign(url);
       }
+      // 如果在options配置项中设置了trigger属性, 则调用loadUrl方法查找路由规则, 并执行规则对应的事件
+      // 在URL发生变化时, 通过checkUrl方法监听到的状态, 会在checkUrl方法中自动调用loadUrl方法
+      // 在手动调用navigate方法时, 如果需要触发路由事件, 则需要传递trigger参数
       if (options.trigger) return this.loadUrl(fragment);
     },
 
     // Update the hash location, either replacing the current entry, or adding
     // a new one to the browser history.
+    // 更新或设置当前URL中的Has串, _updateHash方法在使用hash方式导航时被自动调用(navigate方法中)
+    // location是需要更新hash的window.location对象
+    // fragment是需要更新的hash串
+    // 如果需要将新的hash替换到当前URL, 可以设置replace为true
     _updateHash: function(location, fragment, replace) {
+      // 如果设置了replace为true, 则使用location.replace方法替换当前的URL
+      // 使用replace方法替换URL后, 新的URL将占有原有URL在history历史中的位置
       if (replace) {
+        // 将当前URL与hash组合为一个完整的URL并替换
         var href = location.href.replace(/(javascript:|#).*$/, '');
         location.replace(href + '#' + fragment);
       } else {
         // Some browsers require that `hash` contains a leading #.
+        // 没有使用替换方式, 直接设置location.hash为新的hash串
         location.hash = '#' + fragment;
       }
     }
@@ -2846,7 +2967,7 @@
   // Create the default Backbone.history.
   Backbone.history = new History;
 
-  // Helpers
+  // Helpers 定义一些供Backbone内部使用的帮助函数
   // -------
 
   // Helper function to correctly set up the prototype chain for subclasses.
