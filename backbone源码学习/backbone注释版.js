@@ -2973,6 +2973,12 @@
   // Helper function to correctly set up the prototype chain for subclasses.
   // Similar to `goog.inherits`, but uses a hash of prototype properties and
   // class properties to be extended.
+  /*
+    这个extend是一个help函数,却是一个我们用的非常多的函数,这个函数其实其中有很多的学问在里面,也是backbone重中之重的函数
+    这个函数并没有直接将属性assign到parent上面(this),是因为这样会产生一个显著的问题:污染原型
+    所以实际上backbone的做法是新建了一个子对象,这个子对象承担着所有内容.
+    而backbone的这种设计也注定了其和ES6的class并不能很好的共存
+  */
   var extend = function(protoProps, staticProps) {
     var parent = this;
     var child;
@@ -2980,36 +2986,51 @@
     // The constructor function for the new subclass is either defined by you
     // (the "constructor" property in your `extend` definition), or defaulted
     // by us to simply call the parent constructor.
+    // 这个constructor可以自己写，也可以继承原型的构造，这是典型的ES6的class的套路
+    // 如果在protoProps中指定了"constructor"属性, 则"constructor"属性被作为子类的构造函数
+    // 如果没有指定构造子类构造函数, 则默认调用父类的构造函数
     if (protoProps && _.has(protoProps, 'constructor')) {
+      // 使用"constructor"属性指定的子类构造函数
       child = protoProps.constructor;
     } else {
+      // 使用父类的构造函数
       child = function(){ return parent.apply(this, arguments); };
     }
 
     // Add static properties to the constructor function, if supplied.
+    // 将父类中的静态属性复制为子类静态属性
     _.extend(child, parent, staticProps);
 
     // Set the prototype chain to inherit from `parent`, without calling
     // `parent`'s constructor function and add the prototype properties.
+    // 将父类原型链设置到子类的原型对象中, 子类以此继承父类原型链中的所有属性
     child.prototype = _.create(parent.prototype, protoProps);
     child.prototype.constructor = child;
 
     // Set a convenience property in case the parent's prototype is needed
     // later.
+    // 提供一个访问父类原型的方式
+    // 如果子类设置了constructor属性, 则子类构造函数为constructor指定的函数
+    // 如果需要在子类构造函数中调用父类构造函数, 则需要在子类构造函数中手动调用父类的构造函数
+    // 此处将子类的__super__属性指向父类的构造函数, 方便在子类中调用: 子类.__super__.constructor.call(this);
     child.__super__ = parent.prototype;
 
+    // 返回子类
     return child;
   };
 
   // Set up inheritance for the model, collection, router, view and history.
+  // 所有的上述定义类都用到了这个helper 函数
   Model.extend = Collection.extend = Router.extend = View.extend = History.extend = extend;
 
   // Throw an error when a URL is needed, and none is supplied.
+  // 未指定url错误，如果使用了和服务器交互的方法并且model或者collection都没有获取到url的时候会产生这个错误
   var urlError = function() {
     throw new Error('A "url" property or function must be specified');
   };
 
   // Wrap an optional error callback with a fallback error event.
+  // 包装错误的函数,非常典型的设计模式中的装饰者模式,这里增加了一个触发
   var wrapError = function(model, options) {
     var error = options.error;
     options.error = function(resp) {
