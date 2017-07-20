@@ -103,7 +103,6 @@
   //
   //
   // Backbone的 Events 实际上就是一个观察者模式(发布订阅模式)的实现，并且巧妙的是，还可以作为mixin混入到自己写的object中，
-  // 当然，Backbone自身也用了，所以这个Events的实现是放在前面的。
   // mixin例子：
   //     var object = {};
   //     _.extend(object, Backbone.Events);
@@ -120,7 +119,7 @@
   var eventSplitter = /\s+/;
 
   // A private global variable to share between listeners and listenees.
-  // 用于在监听器和监听器之间共享的私有全局变量。
+  // 用于在监听者和被监听者之间共享的私有全局变量。
   var _listening;
 
   // Iterates over the standard `event, callback` (as well as the fancy multiple
@@ -151,7 +150,7 @@
       // 如果有回调事件，并且 opts 有 'context'即回调函数上下文，并且没有被赋值，则将当前的 回调函数 赋值给 opts.context
       if (callback !== void 0 && 'context' in opts && opts.context === void 0) opts.context = callback;
 
-      // 递归 循环 所有的 key,也就是所有的事件 event，即最后成为 标准形式的迭代
+      // 递归循环 所有的 key,也就是所有的事件 event，即最后成为 标准形式的迭代
       for (names = _.keys(name); i < names.length ; i++) {
         events = eventsApi(iteratee, events, names[i], name[names[i]], opts);
       }
@@ -188,23 +187,32 @@
     // this._events 保存所有监听事件
     // 调用 onApi 用来绑定事件
     // eventsApi函数参数(iteratee, events, name, callback, opts)
+    // 参数中 如果还没有this._events，那么就初始化为空对象。
+    // 
+    // opts中参数：
+    // callback 事件的回调函数
+    // context 回调函数的上下文对象（即当调用on时，为context参数，当调用view.listenTo(....)时，为调用的对象如：view。）
+    // ctx 为context ，当context不存在时，为被监听的对象，如：model.on(…)或view.on(model,…)中的model
+    // listening 其实就是view._listeningTo中的某个属性值，可以看成: listening == view._listeningTo[‘l1’]
     this._events = eventsApi(onApi, this._events || {}, name, callback, {
       context: context,
       ctx: this,
       listening: _listening
     });
 
-    // ?????
-    // 如果  object 正在监听某某对象的话???? 如果是通过listenTo 监听调用的。
-    // listening用于监听对象。
+    // 处理通过 listenTo 方法调用 on 绑定的情况
+    // 在下方定义的 Events.listenTo 中会调用 on 方法来绑定事件，当你调用listenTo方法的时候（如下一行的例子1）这个时候就会产生有 _listening 的情况。
+    // 例子1:A.listenTo(B, “b”, callback);
+    // _listening：在下方 Events.listenTo 方法中，被赋值为正在监听的对象的id，例子1中的 B 的 id。赋值语句如下：
+    // var listening = _listening = listeningTo[id];
+    // 结合下方的 listenTo 方法来理解这个变量
     if (_listening) {
-      // 定义变量 listener，赋值 this._listeners ；
+      // 定义变量监听者 listener，赋值 this._listeners；如果还没有this._listeners，初始化为空对象。
       var listeners = this._listeners || (this._listeners = {});
-      // 将上文定义的私有全局变量_listening 赋值给 listeners[_listening.id];
+      // 将上文定义的私有全局变量_listening 赋值给 listeners[_listening.id]; 即 监听者监听的对象id。
       listeners[_listening.id] = _listening;
       // Allow the listening to use a counter, instead of tracking
       // callbacks for library interop
-      //
       // todo
       // 允许 listening 使用计数器，而不是跟踪库互操作性回调
       _listening.interop = false;
@@ -245,11 +253,11 @@
     // _.uniqueId:为需要的客户端模型或DOM元素生成一个全局唯一的id,这个id以l开头.
     var id = obj._listenId || (obj._listenId = _.uniqueId('l'));
 
-    // 定义变量 listeningTo 存放监听的对象的信息，相当于例子1种的b，赋值为 this._listeningTo 或者 {}
+    // 定义变量 listeningTo 存放监听的对象的信息，相当于例子1种的b，赋值为 this._listeningTo ，如果还没有this._listeningTo，则定义为空对象。
     // this._listeningTo存放当前对象的所有的监听对象事件,按照键值对存储
     var listeningTo = this._listeningTo || (this._listeningTo = {});
 
-    // 正在监听的对象的id，例子1中的A的listening正在监听 listeningTo[id]。
+    // 正在监听的对象的id，例子1中的 B 的 id。
     var listening = _listening = listeningTo[id];
 
     // This object is not listening to any other events on `obj` yet.
@@ -258,16 +266,37 @@
     if (!listening) {
       // 生成 例子中的B 的id: _listenId
       this._listenId || (this._listenId = _.uniqueId('l'));
-      // 生成 listening 和 _listening 还有 listeningTo[id]
+      // 通过 new 一个 Listening 新实例，生成 listening 和 _listening 还有 listeningTo[id]
+      // 
+      // 实例 Listening 下方定义：
+      // var Listening = function(listener, obj) {
+      //   this.id = listener._listenId; //监听方的id
+      //   this.listener = listener; // 监听方
+      //   this.obj = obj; // 被监听的对象
+      //   this.interop = true;
+      //   this.count = 0;   //监听了几个事件
+      //   this._events = void 0; // 监听事件的回调函数序列
+      // };
       listening = _listening = listeningTo[id] = new Listening(this, obj);
     }
+
+    // 生成了一些必要的信息之后，开始真正绑定事件
 
     // Bind callbacks on obj.
     // 在obj 上绑定回调
     //
-    // tryCatchOn：一个try-catch保护on函数，以防止污染全局`_listening`变量。
+    // tryCatchOn：在方定义函数，一个try-catch保护on函数，以防止污染全局`_listening`变量。
     // 在obj 上绑定回调绑定函数，如果不对就报错
+    // 
+    // var tryCatchOn = function(obj, name, callback, context) {
+    //   try {
+    //     obj.on(name, callback, context);
+    //   } catch (e) {
+    //     return e;
+    //   }
+    // };
     var error = tryCatchOn(obj, name, callback, this);
+    // 绑定好事件之后，重新将 _listening 置为 void 0，void 0 相当于 undefined，用 void 0 而不是 undefined 原因是 undefined 可以被重写。
     _listening = void 0;
 
     // 如果有错误 就报错
