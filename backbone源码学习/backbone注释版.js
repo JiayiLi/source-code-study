@@ -326,7 +326,7 @@
       var handlers = events[name] || (events[name] = []);
       // 针对这个回调事件 ，生成相应信息
       var context = options.context, ctx = options.ctx, listening = options.listening;
-      // todo
+
       // 如果正在监听某个对象，listening.count++
       if (listening) listening.count++;
 
@@ -352,9 +352,10 @@
   // callbacks for the event. If `name` is null, removes all bound
   // callbacks for all events.
   // 此函数作用于删除一个或多个回调。
-  // 如果没有任何参数，off相当于把对应的_events对象整体清空，删除所有事件的所有绑定回调；
-  // 如果有name参数但是没有具体指定哪个callback的时候，则把这个name(事件)对应的回调队列全部清空；
-  // 如果还有进一步详细的callback和context，那么这个时候移除回调函数非常严格，必须要求上下文和原来函数完全一致；
+  // 根据参数的不同，分为一下几种情况：
+  // 1、如果没有任何参数，off相当于把对应的_events对象整体清空，删除所有事件的所有绑定回调；
+  // 2、如果有name参数但是没有具体指定哪个callback的时候，则把这个name(事件)对应的回调队列全部清空；
+  // 3、如果还有进一步详细的callback和context，那么这个时候移除回调函数非常严格，必须要求上下文和原来函数完全一致；
   Events.off = function(name, callback, context) {
     // 当前`object`不存在`_events`(即没有绑定过事件)直接返回
     if (!this._events) return this;
@@ -414,6 +415,7 @@
   };
 
   // The reducing API that removes a callback from the `events` object.
+  // 真正用于解绑事件的函数。
   // 此函数用于 往this._events里面删除相应的事件，在 eventsApi 函数中作为 iteratee 参数调用。
   var offApi = function(events, name, callback, options) {
     // 如果没有传入要删除的事件就直接返回
