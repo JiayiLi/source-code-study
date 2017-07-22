@@ -486,10 +486,10 @@
   Events.once = function(name, callback, context) {
     // Map the event into a `{event: once}` object.
     // 循环每个事件把它添加到{event: once}对象中
-    // 调用onceMap处理事件， _.bind(this.off, this)将作为onceMap最后一个参数传入offer
+    // 调用onceMap处理事件， _.bind(this.off, this)将作为onceMap方法的最后一个参数传入offer
+    // underscore _.bind(function, object, *arguments) 绑定函数 function 到对象 object 上, 也就是无论何时调用函数, 函数里的 this 都指向这个 object. 任意可选参数 arguments 可以传递给函数 function , 可以填充函数所需要的参数, 这也被称为 partial application。对于没有结合上下文的partial application绑定，请使用partial。 
     var events = eventsApi(onceMap, {}, name, callback, _.bind(this.off, this));
 
-    // ????
     // 如果名字是字符串并且上下文为空，则回调函数置为空，
     // 在onceMap中,在事件被调用一次之后会解除上下文，也就是 context 为空，这个时候表示已经调用过一次了，将callback置为undefined
     if (typeof name === 'string' && context == null) callback = void 0;
@@ -524,13 +524,15 @@
     if (callback) {
       // underscore:_.once(function) 创建一个只能调用一次的函数。重复调用改进的方法也没有效果，只会返回第一次执行时的结果。作为初始化函数使用时非常有用, 不用再设一个boolean值来检查是否已经初始化完成.
       var once = map[name] = _.once(function() {
-        // name,once 会作为_.bind(function, object, *arguments)中function的参数
+
         // 执行this.off或者this.stopListening，解除绑定
+        // name,once 会作为_.bind(function, object, *arguments)中function的参数  ????
         offer(name, once);
         // 调用回调函数
         callback.apply(this, arguments);
       });
-      //????
+
+      // 这个在解绑的时候有一个分辨效果
       once._callback = callback;
     }
     return map;
@@ -553,7 +555,7 @@
     // 在数组args中保存传递进来的除了第一个之外的其余参数,提取出来的参数最终回传递给下方定义的函数 triggerApi
     for (var i = 0; i < length; i++) args[i] = arguments[i + 1];
 
-    // 调用triggerApi
+    // 调用下方定义的triggerApi
     eventsApi(triggerApi, this._events, name, void 0, args);
     return this;
   };
@@ -562,14 +564,15 @@
   // 处理触发适当的事件回调。
   var triggerApi = function(objEvents, name, callback, args) {
     if (objEvents) {
+      // 找到要被 trigger 的回调事件列表
       var events = objEvents[name];
       //处理对all事件进行监听的情况，假设A对象监听了B对象的all事件，那么所有的B对象的事件都会被触发,并且会把事件名作为第一个函数参数
       var allEvents = objEvents.all;
+      // 生成一个新的 allEvents 数组
       if (events && allEvents) allEvents = allEvents.slice();
-
-      // 如果不是所有事件
+      // 如果不是所有事件，调用下方定义的triggerEvents方法
       if (events) triggerEvents(events, args);
-      // 如果是所有事件
+      // 如果是所有事件，调用下方定义的triggerEvents方法
       if (allEvents) triggerEvents(allEvents, [name].concat(args));
     }
     return objEvents;
@@ -578,7 +581,8 @@
   // A difficult-to-believe, but optimized internal dispatch function for
   // triggering events. Tries to keep the usual cases speedy (most internal
   // Backbone events have 3 arguments).
-  // 对事件进行触发,优先进行call调用，call调用比apply调用效率更高，所以优先进行call调用
+  // 对事件进行触发,优先进行call调用，call调用比apply调用效率更高，所以优先进行call调用。
+  // 为什么call比apply性能好，大家可以看我的这篇文章https://zhuanlan.zhihu.com/p/27659836
   // 之所以用`switch`是因为大多数的回调函数需要的参数都在三个以内(包含三个).如果是小于三个的参数，就用call，否则用apply
   // 这里的events参数，实际上是回调函数列
   var triggerEvents = function(events, args) {
@@ -600,7 +604,7 @@
     this.id = listener._listenId; //监听方的id
     this.listener = listener; // 监听方
     this.obj = obj; // 被监听的对象
-    this.interop = true;
+    this.interop = true; // ???
     this.count = 0;   //监听了几个事件
     this._events = void 0; // 监听事件的回调函数序列
   };
@@ -612,7 +616,7 @@
   // Uses an optimized counter if the listenee uses Backbone.Events.
   // Otherwise, falls back to manual tracking to support events
   // library interop.
-  // Listening的实例涌来解除正在监听的一个或多个回调。
+  // Listening的实例用来解除正在监听的一个或多个回调。
   Listening.prototype.off = function(name, callback) {
     var cleanup;
     // 初始化this.interop都为true
@@ -623,7 +627,7 @@
         context: void 0,
         listeners: void 0
       });
-      // ????
+      
       // this._events中有回调函数，cleanup 为false
       // this._events中没有回调函数，cleanup 为true
       cleanup = !this._events;
