@@ -627,7 +627,7 @@
         context: void 0,
         listeners: void 0
       });
-      
+
       // this._events中有回调函数，cleanup 为false
       // this._events中没有回调函数，cleanup 为true
       cleanup = !this._events;
@@ -690,20 +690,20 @@
 
     // model 模型元数据都存储在`attributes`变量中.
     this.attributes = {};
-    // 如果指定`collection`则保存, model在构造url时可能会用到此参数.
+
+    // 如果指定`collection`则保存, model 在构造 url 时可能会用到此参数.
     if (options.collection) this.collection = options.collection;
 
-    //如果之后new的时候传入的是JSON,我们必须在options选项中声明parse为true
+    // 如果之后 new 的时候传入的是 JSON,我们必须在 options 选项中声明 parse 为 true
     if (options.parse) attrs = this.parse(attrs, options) || {};
 
+    // 返回当前 Model 的默认属性值集合
     // underscore _.result(object, property)方法:如果对象 object 中的属性 property 是函数, 则调用它, 否则, 返回它。
-    // 返回当前Model的默认属性值集合
     var defaults = _.result(this, 'defaults');
 
+    // 合并 默认属性 和 传进来的参数属性 到一个空数组，将未被设置的属性默认为默认值。
     // underscore _.defaults(object, *defaults)方法:用defaults对象填充object中的undefined属性。 并且返回这个object。一旦这个属性被填充，再使用defaults方法将不会有任何效果。
     // underscore _.extend(destination, *sources)方法:复制source对象中的所有属性覆盖到destination对象上，并且返回 destination 对象. 复制是按顺序的, 所以后面的对象属性会把前面的对象属性覆盖掉(如果有重复).
-
-    // 合并 默认属性 和 传进来的参数属性 到一个空数组，将未被设置的属性默认为默认值。
     attrs = _.defaults(_.extend({}, defaults, attrs), defaults);
     // 调用后面定义的`set`方法设置数据到`this.attributes`中.
     this.set(attrs, options);
@@ -716,19 +716,25 @@
   // Attach all inheritable methods to the Model prototype.
   // 使用extend方法为Model原型定义一系列属性和方法。
   _.extend(Model.prototype, Events, {
-
     // A hash of attributes whose current and previous value differ.
-    // 存储当前值和上一个值不同的属性的哈希值。
     // 用于保存上一次`set`之后改变的数据的key集合, 在new一个对象时此变量值会被改成{}.
     changed: null,
 
     // The value returned during the last failed validation.
     // 如果数据字段的格式不合法, 此变量不为空. 可通过此变量判断数据有效性.
+    // 用后面定义的的_validate方法验证失败时返回的值。
     validationError: null,
 
     // The default name for the JSON `id` attribute is `"id"`. MongoDB and
     // CouchDB users may want to set this to `"_id"`.
+    // 一个model的唯一标示符，被储存在 id 属性下。
     // JSON`id`属性的默认名称为“”id“`。 MongoDB和CouchDB用户可能希望将其设置为“_id”。
+    // 例子：
+    // var Meal = Backbone.Model.extend({
+    //   idAttribute: "_id"
+    // });
+    // var cake = new Meal({ _id: 1, name: "Cake" });
+    // alert("Cake id: " + cake.id);
     idAttribute: 'id',
 
     // The prefix is used to create the client id which is used to identify models locally.
@@ -747,7 +753,7 @@
     initialize: function(){},
 
     // Return a copy of the model's `attributes` object.
-    // 返回模型的“attributes”对象的副本。(JSON对象格式)
+    // 返回一个模型的 attributes 浅拷贝副本的 JSON 字符串化形式。 它可用于模型的持久化、序列化，或者发送到服务之前的扩充。
     toJSON: function(options) {
       // underscore _.clone(object)方法:创建 一个浅复制（浅拷贝）的克隆object。任何嵌套的对象或数组都通过引用拷贝，不会复制。
       return _.clone(this.attributes);
@@ -755,19 +761,24 @@
 
     // Proxy `Backbone.sync` by default -- but override this if you need
     // custom syncing sem/antics for *this* particular model.
-    // 默认情况下，代理`Backbone.sync`，但是如果需要* this *特定模型的自定义同步语义，则重写此代码。
+    // 使用 Backbone.sync 可以将一个模型的状态持续发送到服务器。 可以自定义行为覆盖。
     sync: function() {
       return Backbone.sync.apply(this, arguments);
     },
 
     // Get the value of an attribute.
-    // 根据attr属性名, 获取模型中的数据值
+    // 从当前model中获取当前属性(attributes)值，比如： note.get("title")
     get: function(attr) {
       return this.attributes[attr];
     },
 
     // Get the HTML-escaped value of an attribute.
-    // 根据attr属性名, 获取模型中的数据值, 数据值包含的HTML特殊字符将被转换为HTML实体, 包含 & < > " ' \
+    // 与 get 类似，只是返回的是 HTML 转义后版本的 model 属性值。如果从 model 插入数据到 HTML ，使用 escape 取数据可以避免 XSS 攻击。
+    // 例子：
+    // var hacker = new Backbone.Model({
+    //   name: "<script>alert('xss')</script>"
+    // });
+    // alert(hacker.escape('name'));  //输出 &lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;
     escape: function(attr) {
       // underscore _.escape(string)方法:转义HTML字符串，替换&, <, >, ", ', 和 /字符。
       return _.escape(this.get(attr));
@@ -775,7 +786,7 @@
 
     // Returns `true` if the attribute contains a value that is not null
     // or undefined.
-    // 检查模型中是否存在某个属性。
+    // 检查模型中是否存在某个属性。属性值为非 null 或非 undefined 时返回 true。
     // 当该属性的值被转换为Boolean类型后值为false, 则认为不存在。如果值为false, null, undefined, 0, NaN, 或空字符串时, 均会被转换为false。
     has: function(attr) {
       return this.get(attr) != null;
@@ -791,8 +802,10 @@
     // Set a hash of model attributes on the object, firing `"change"`. This is
     // the core primitive operation of a model, updating the data and notifying
     // anyone who needs to know about the change in state. The heart of the beast.
-    // 在 new model 的时候被调用 this.set(attrs, options);
-    // 在对象上设置模型属性的哈希，触发“”change“`。 这是模型的核心原始操作，更新数据并通知任何需要了解状态变化的人。
+    // 向 model 设置一个或多个 hash 属性(attributes)。如果任何一个属性改变了 model 的状态，在不传入 {silent: true} 选项参数的情况下，会触发 "change" 事件，更改特定属性的事件也会触发。 可以绑定事件到某个属性，例如：change:title，及 change:content。
+    // 例子： 
+    // note.set({title: "March 20", content: "In his eyes she eclipses..."});
+    // book.set("title", "A Scandal in Bohemia");
     set: function(key, val, options) {
       // 如果没有传入key，则直接返回
       if (key == null) return this;
@@ -812,7 +825,7 @@
       options || (options = {});
 
       // Run validation.
-      // 对当前数据进行验证, 如果验证未通过则停止执行
+      // 对当前数据进行验证, 如果验证未通过则停止执行。 _validate后面定义的额函数。
       if (!this._validate(attrs, options)) return false;
 
       // Extract attributes and options.
@@ -824,15 +837,14 @@
       var silent     = options.silent;
       // 方便触发事件的时候使用
       var changes    = [];
-
       // 适用于嵌套更改操作
       var changing   = this._changing;
-      // 将 this._changing 赋值给changing，然后再重新定义为 true
-      this._changing = true;
+      // 将 this._changing 赋值给 changing，然后再重新定义为 true
       // 初次 set 时 changing 为 undefined 而 this.changing 为 true
+      this._changing = true;
 
 
-      //适用于嵌套更改操作
+      // 适用于嵌套更改操作
       // 初次set时会进入此判断
       // 如果是初次 set，将当前的 attributes 保存到 this._previousAttributes，同时将 this.changed 置为 {}，用来后续判断哪些属性发生了变化。
       if (!changing) {
@@ -842,12 +854,11 @@
         this.changed = {};
       }
 
-      // 当前模型中的数据对象
+      // 当前模型中的数据对象，attributes 包含模型状态的内部散列表
       var current = this.attributes;
-
-      //changed用来存历史版本,因此backbone支持一个变量历史版本(但并不是时光机，而仅仅是一个历史版本)
+      // changed 用来存历史版本,因此 backbone 支持一个变量历史版本(但并不是时光机，而仅仅是一个历史版本)
       var changed = this.changed;
-      //_previousAttributes存放着是历史版本变量，也就是这次set之前这个model中有哪些键值对
+      //_previousAttributes 存放着是历史版本变量，也就是这次 set 之前这个 model 中有哪些键值对
       var prev    = this._previousAttributes;
 
       // For each `set` attribute, update or delete the current value.
@@ -857,8 +868,8 @@
         // attr存储当前属性名称, val存储当前属性的值
         val = attrs[attr];
 
+        // 如果当前值和要设置的值不相等，则属于要变化的属性，push到 changes 中
         // underscore _.isEqual(object, other)方法:执行两个对象之间的优化深度比较，确定他们是否应被视为相等。
-        // 如果当前值和要设置的值不相等，则属于要变化的属性，push到changes中
         if (!_.isEqual(current[attr], val)) changes.push(attr);
         // 如果上一次的值和要设置的值不相等，则在历史版本中保存一下
         if (!_.isEqual(prev[attr], val)) {
@@ -880,7 +891,7 @@
       // Trigger all relevant attribute changes.
       // 判断 options 中是否有 {silent: true} 的设置，若没有，则分别触发 changes 数组中的一个 key 对应的 change 事件，对每一个属性的更改都触发相应的事件,事件名采用 change:AttrName 格式,同时 this._pending = options（后续步骤使用）
       if (!silent) {
-        // 如果有要change的属性，this._pending 赋值为options
+        // 如果有要改变的属性，this._pending 赋值为options
         if (changes.length) this._pending = options;
         // 循环触发事件
         for (var i = 0; i < changes.length; i++) {
@@ -893,12 +904,11 @@
       // 判断 changing 状态位是否为 true，若是则返回 this, 这一步主要是考虑到上面 !silent 判断中触发的 change 事件会再次导致 set 方法的调用，但是在后续的 set 调用中，由于 this.changing 已经设为 true， changing = this.changing 也为 true， 所以后续 set 方法走到这一步就会结束。
       if (changing) return this;
 
-      // ??????
       // 判断 options.silent 是否为 true，若不是则将 this.pending 置为 false，同时触发 change 事件，并不断循环，直到 this.pending 为 false 为止
       //
       // _pending:https://github.com/jashkenas/backbone/issues/2846
       //
-      // 如果有更改事件的监听器更新多个属性，则不会调用所有set的函数。while循环处理1个监听器调用多次的边缘情况，而不是多个监听器，每个调用set一次。例子：
+      // 如果有 change 事件的监听器更新多个属性，则不会调用所有set的函数。while循环处理1个监听器调用多次的边缘情况，而不是多个监听器，每个调用set一次。例子：
       // model.on('change:a', function() {
       //   model.set({b: true});
       //   model.set({b: true});
@@ -918,13 +928,13 @@
 
     // Remove an attribute from the model, firing `"change"`. `unset` is a noop
     // if the attribute doesn't exist.
-    // 从模型中删除一个属性，触发“change”事件。unset 设置为 true,为删除操作。
+    // 从模型中删除一个属性，如果未设置 silent 选项，触发“change”事件。unset 设置为 true,为删除操作。
     unset: function(attr, options) {
       return this.set(attr, void 0, _.extend({}, options, {unset: true}));
     },
 
     // Clear all attributes on the model, firing `"change"`.
-    // 清除所有模型上的所有属性，触发"change"事件，unset 设置为 true,为删除操作。
+    // 从 model 中删除所有属性， 包括id属性。 如果未设置 silent 选项，会触发 "change" 事件。unset 设置为 true,为删除操作。
     clear: function(options) {
       var attrs = {};
       for (var key in this.attributes) attrs[key] = void 0;
@@ -933,8 +943,7 @@
 
     // Determine if the model has changed since the last `"change"` event.
     // If you specify an attribute name, determine if that attribute has changed.
-    // 确定最近的一次 “change” 事件 触发了 model 变化。
-    //
+    // 标识模型从上次 set 事件发生后是否改变过。 如果传入 att ，当指定属性改变后返回 true。
     // underscore _.isEmpty(object)方法:如果object 不包含任何值(没有可枚举的属性)，返回true。 对于字符串和类数组（array-like）对象，如果length属性为0，那么_.isEmpty检查返回true。
     // _.isEmpty([1, 2, 3]);
     // => false
@@ -954,56 +963,78 @@
     // persisted to the server. Unset attributes will be set to undefined.
     // You can also pass an attributes object to diff against the model,
     // determining if there *would be* a change.
-    // 返回一个对象包含所有变化了的属性，如果没有对属性发生变化则返回false。
-    // 主要用于确定那部分视图需要更新 并且（或者）那些属性需要持久化到服务器。取消设置的属性会被设置为undefined。
+    // 只从最后一次set开始检索已改变的模型属性散列（hash），或者如果没有，返回 false。
+    // 这可以用来找出视图的哪些部分应该更新，或者确定哪些需要与服务器进行同步。
     // 你还可以将属性对象传递给模型，以确定是否将会有改变。
     changedAttributes: function(diff) {
+      // 如果没有传入要比较的属性，就返回标识模型从上次 set 事件改变过的属性集合。
+      // this.hasChanged()上面定义的方法，用于判断标识模型从上次 set 事件发生后是否改变过。 
       if (!diff) return this.hasChanged() ? _.clone(this.changed) : false;
+      
+      // 如果有特定比较的属性diff
+      
+      // 原来的值
       var old = this._changing ? this._previousAttributes : this.attributes;
+      // 用于保存改变的属性及值
       var changed = {};
+      // 标示符
       var hasChanged;
+      // 循环 diff，检查每个属性是否有变化
       for (var attr in diff) {
+        // 当前值
         var val = diff[attr];
+        // 如果相等，就继续下一轮的判断
         if (_.isEqual(old[attr], val)) continue;
+        // 如果不相等，保存到changed 对象中，
         changed[attr] = val;
+        // 并将 是否有改变的标识符 记为 true
         hasChanged = true;
       }
+
+      // 如果有变化，就返回变化了的属性及值 对象集合，否则返回 false
       return hasChanged ? changed : false;
     },
 
     // Get the previous value of an attribute, recorded at the time the last
     // `"change"` event was fired.
-    // 获得被记录的最新的一次"change"事件被触发时某个属性的旧值。
+    // 在 "change" 事件发生的过程中，本方法可被用于获取已改变属性的旧值。
     previous: function(attr) {
+      // 如果没有指定属性或者还不存在上一个版本，返回 null
       if (attr == null || !this._previousAttributes) return null;
+
       return this._previousAttributes[attr];
     },
 
     // Get all of the attributes of the model at the time of the previous
     // `"change"` event.
-    // 获得 model 中所有属性 在“change” 事件被触发时的旧值
+    // 返回模型的上一个属性的副本。一般用于获取模型的不同版本之间的区别，或者当发生错误时回滚模型状态。
     previousAttributes: function() {
       return _.clone(this._previousAttributes);
     },
 
     // Fetch the model from the server, merging the response with the model's
     // local attributes. Any changed attributes will trigger a "change" event.
-    // 从服务端抓取 model，将响应的属性与模型的本地属性合并。
-    // 任何变化都会触发 “change” 事件
+    // 通过委托给 Backbone.sync 从服务器重置模型的状态。
+    // 返回jqXHR（http://www.css88.com/jqapi-1.9/jQuery.ajax/#jqXHR）。 
+    // 用于模型从未填充过数据， 或者如果你想确保你有最新的服务器状态。 
+    // 如果服务器的状态不同于当前属性值，"change"事件将被触发。
     fetch: function(options) {
       options = _.extend({parse: true}, options);
+      // 当前模型
       var model = this;
-      // 在options中可以指定获取数据成功后的自定义回调函数
+      // 在 options 中可以指定获取数据成功后的自定义回调函数，现将用户自定义的回调函数 赋值给success，防止后面被重写
       var success = options.success;
       // 当获取数据成功后填充数据并调用自定义成功回调函数
       options.success = function(resp) {
-        // 通过parse方法将服务器返回的数据进行转换
+        // 服务器端的属性值。通过parse方法将服务器返回的数据进行转换
         var serverAttrs = options.parse ? model.parse(resp, options) : resp;
         // 通过set方法将转换后的数据填充到模型中, 因此可能会触发change事件(当数据发生变化时)
         // 如果填充数据时验证失败, 则不会调用自定义success回调函数
         if (!model.set(serverAttrs, options)) return false;
         // 调用自定义的success回调函数
         if (success) success.call(options.context, model, resp, options);
+        // ????
+        // 触发sync事件
         model.trigger('sync', model, resp, options);
       };
       // 请求发生错误时通过wrapError处理error事件
@@ -1015,7 +1046,10 @@
     // Set a hash of model attributes, and sync the model to the server.
     // If the server returns an attributes hash that differs, the model's
     // state will be `set` again.
-    // 保存模型中的数据到服务器。设置属性的 哈希指，并将模型同步到服务器，如果服务器返回不同的属性哈希，则模型的状态将再次设置。
+    // 通过委托给 Backbone.sync，保存模型到数据库（或替代持久化层)。
+    // 如果模型isNew， 保存将采用"create"（HTTP POST）， 如果模型在服务器上已经存在， 保存将采用"update"（HTTP PUT）。
+    // 如果你只想将改变属性发送到服务器， 调用model.save(attrs, {patch: true})。 你会得到一个HTTP PATCH 请求将刚刚传入的属性发送到服务器。
+    // 通过新的属性调用 save 将立即触发一个"change"事件，一个"request"事件作为Ajax请求开始到服务器， 并且当服务器确认成功修改后立即触发 一个"sync"事件。 如果你想在模型上等待服务器设置新的属性，请传递{wait: true}。
     save: function(key, val, options) {
       // Handle both `"key", value` and `{key: value}` -style arguments.
       // 处理 key,value 和 {key:value} 两种形式的参数
@@ -1054,6 +1088,7 @@
       // updated with the server-side state.
       // 成功的服务器端保存后，客户端（可选）会更新服务器端状态。
       var model = this;
+      // 在 options 中可以指定获取数据成功后的自定义回调函数，现将用户自定义的回调函数 赋值给success，防止后面被重写
       var success = options.success;
       var attributes = this.attributes;
       // 服务器响应成功后执行success
@@ -1061,6 +1096,7 @@
         // Ensure attributes are restored during synchronous saves.
         // 确保在同步保存期间还原属性。
         model.attributes = attributes;
+        // 服务器端属性值
         var serverAttrs = options.parse ? model.parse(resp, options) : resp;
         // 如果使用了wait参数, 则优先将修改后的数据状态直接设置到模型
         if (wait) serverAttrs = _.extend({}, attrs, serverAttrs);
@@ -1082,6 +1118,7 @@
       // 如果当前模型是一个新建的模型(没有id), 则使用create方法(新增), 否则认为是update方法(修改)
       var method = this.isNew() ? 'create' : (options.patch ? 'patch' : 'update');
       if (method === 'patch' && !options.attrs) options.attrs = attrs;
+      // 调用sync方法从服务器操作数据
       var xhr = this.sync(method, this, options);
 
       // Restore attributes.
@@ -1095,7 +1132,7 @@
     // Destroy this model on the server if it was already persisted.
     // Optimistically removes the model from its collection, if it has one.
     // If `wait: true` is passed, waits for the server to respond before removal.
-    // 如果服务器已经持久化，则在服务器上销毁此模型。如果有模型，则可以从Collection集合中删除该模型。 如果设置了“wait：true”，请等待服务器成功响应再删除。
+    // 如果服务器已经持久化，则在服务器上销毁此模型。如果有模型，则可以从Collection集合中删除该模型。 如果设置了“wait：true”，等待服务器成功响应再删除。
     //
     // 如果模型是在客户端新建的, 则直接从客户端删除
     // 如果模型数据同时存在服务器, 则同时会删除服务器端的数据
@@ -1106,6 +1143,7 @@
       var wait = options.wait;
 
       var destroy = function() {
+        // 让 model 停止监听事件。
         model.stopListening();
         // 删除数据成功调用, 触发destroy事件, 如果模型存在于Collection集合中, 集合将监听destroy事件并在触发时从集合中移除该模型
         model.trigger('destroy', model, model.collection, options);
@@ -1139,17 +1177,13 @@
     // Default URL for the model's representation on the server -- if you're
     // using Backbone's restful methods, override this to change the endpoint
     // that will be called.
-    //backbone Model的url构造函数，我们可以指定一个urlRoot作为根路径，另外也可以继承来自collection的url
-    // 当然我们还可以覆盖这个url函数的写法(不推荐)
-    // 获取模型在服务器接口中对应的url, 在调用save, fetch, destroy等与服务器交互的方法时, 将使用该方法获取url
-    // 如果在模型中定义了urlRoot, 服务器接口应为[urlRoot/id]形式
-    // 如果模型所属的Collection集合定义了url方法或属性, 则使用集合中的url形式: [collection.url/id]
+    // 返回模型资源在服务器上位置的相对 URL 。 
+    // 
+    // 生成 URLs 的默认形式为："/[collection.url]/[id]"， 如果模型不是集合的一部分，你可以通过指定明确的urlRoot覆盖。
     // 在访问服务器url时会在url后面追加上模型的id, 便于服务器标识一条记录, 因此模型中的id需要与服务器记录对应
-    // 如果无法获取模型或集合的url, 将调用urlError方法抛出一个异常
     url: function() {
+      // 定义服务器对应的url路径， 如果无法获取模型或集合的url, 将调用urlError方法抛出一个异常
       // underscore _.result(object, property)方法:如果对象 object 中的属性 property 是函数, 则调用它, 否则, 返回它。
-      //
-      // 定义服务器对应的url路径
       var base =
         _.result(this, 'urlRoot') ||
         _.result(this.collection, 'url') ||
@@ -1159,18 +1193,21 @@
       // 如果当前模型具有id属性, 可能是调用了save或destroy方法, 将在base后面追加模型的id
       // 下面将判断base最后一个字符是否是"/", 生成的url格式为[base/id]
       var id = this.get(this.idAttribute);
+      //正则匹配url是不是以`/`结尾，是的话就不管，不是的话就加上`/`,
       return base.replace(/[^\/]$/, '$&/') + encodeURIComponent(id);
     },
 
     // **parse** converts a response into the hash of attributes to be `set` on
     // the model. The default implementation is just to pass the response along.
     // **parse** 将响应转换为模型的“set”属性的哈希值。 默认的实现只是传递响应。
+    // parse 会在通过 fetch 从服务器返回模型数据，以及 save 时执行。 传入本函数的为原始 response 对象，并且应当返回可以 set 到模型的属性散列表。 
+    // 当服务器返回的数据结构与set方法所需的数据结构不一致(例如服务器返回XML格式数据时), 可使用parse方法进行转换
     parse: function(resp, options) {
       return resp;
     },
 
     // Create a new model with identical attributes to this one.
-    // 创建一个具有相同属性的新模型。
+    // 返回该模型的具有相同属性的新实例。
     clone: function() {
       return new this.constructor(this.attributes);
     },
@@ -1182,7 +1219,7 @@
     },
 
     // Check if the model is currently in a valid state.
-    // 判断是否通过验证，在使用validate验证的时候可以调用
+    // 运行validate来检查模型状态。
     isValid: function(options) {
       return this._validate({}, _.extend({}, options, {validate: true}));
     },
@@ -1191,7 +1228,6 @@
     // returning `true` if all is well. Otherwise, fire an `"invalid"` event.
     // 数据验证方法, 在调用set, save, add等数据更新方法时, 被自动执行
     // 验证失败会触发模型对象的"error"事件, 如果在options中指定了error处理函数, 则只会执行options.error函数
-    //
     _validate: function(attrs, options) {
       if (!options.validate || !this.validate) return true;
       // 获取对象中所有的属性值
@@ -1199,6 +1235,7 @@
       // 放入validate方法中进行验证。validate方法包含2个参数, 分别为模型中的数据集合与配置对象, 如果验证通过则不返回任何数据(默认为undefined), 验证失败则返回带有错误信息数据
       var error = this.validationError = this.validate(attrs, options) || null;
       if (!error) return true;
+      // 如果有错误，就调用 invalid
       this.trigger('invalid', this, error, _.extend(options, {validationError: error}));
       return false;
     }
