@@ -1301,7 +1301,7 @@
 
     // The default model for a collection is just a **Backbone.Model**.
     // This should be overridden in most cases.
-    // 定义集合的模型类, 模型类必须是一个Backbone.Model。
+    // 覆盖此属性来指定集合中包含的模型类。可以传入原始属性对象（和数组）来 add, create,和 reset，传入的属性会被自动转换为适合的模型类型。
     // 大多数情况下会被重写。
     model: Model,
 
@@ -1318,14 +1318,21 @@
 
     // The JSON representation of a Collection is an array of the
     // models' attributes.
-    // 返回一个数组, 包含了集合中每个模型的属性。
+    // 返回集合中包含的每个模型(通过 toJSON) 的属性哈希的数组。可用于集合的序列化和持久化。本方法名称容易引起混淆，因为它与 JavaScript's JSON API 命名相同。
+    // 例子：
+    // var collection = new Backbone.Collection([
+    //   {name: "Tim", age: 5},
+    //   {name: "Ida", age: 26},
+    //   {name: "Rob", age: 55}
+    // ]);
+    // alert(JSON.stringify(collection)); // 输出[{"name":"Tim","age":5},{"name":"Ida","age":26},{"name":"Rob","age":55}]
     toJSON: function(options) {
         // 通过Undersocre的map方法将集合中每一个模型的toJSON结果组成一个数组, 并返回
         return this.map(function(model) { return model.toJSON(options); });
     },
 
     // Proxy `Backbone.sync` by default.
-    // 默认代理`Backbone.sync`
+    // 使用 Backbone.sync来将一个集合的状态持久化到服务器。 可以自定义行为覆盖。
     sync: function() {
       return Backbone.sync.apply(this, arguments);
     },
@@ -1333,15 +1340,15 @@
     // Add a model, or list of models to the set. `models` may be Backbone
     // Models or raw JavaScript objects to be converted to Models, or any
     // combination of the two.
-    // 向集合中添加一个或多个模型对象
-    // 这个模型可以是backbone模型，也可以是用来生成backbone模型的js键值对象或者两者的任意组合。
+    // 向集合中增加一个模型（或一个模型数组），触发"add"事件。  
+    // 传递{at: index}可以将模型插入集合中特定的index索引位置。 
+    // 如果您要添加 集合中已经存在的模型 到集合，他们会被忽略， 除非你传递{merge: true}， 在这种情况下，它们的属性将被合并到相应的模型中， 触发任何适当的"change" 事件。
     add: function(models, options) {
       return this.set(models, _.extend({merge: false}, options, addOptions));
     },
 
     // Remove a model, or a list of models from the set.
-    // 从集合中删除一个或多个模型对象
-    // ????
+    // 从集合中删除一个模型（或一个模型数组），会触发 "remove" 事件，
     remove: function(models, options) {
       options = _.extend({}, options);
       // underscore _.isArray(object)方法: 如果object是一个数组，返回true。
@@ -1349,10 +1356,12 @@
       // models不是数组，就套个壳转换为数组;
       // 是数组，就调用slice()返回一个新的数组。
       models = singular ? [models] : models.slice();
-
+      // 调用后面定义的_removeModels方法
       var removed = this._removeModels(models, options);
+      // 如果没有options.silent为false，并且removed数组不为空
       if (!options.silent && removed.length) {
         options.changes = {added: [], merged: [], removed: removed};
+        // 触发更新
         this.trigger('update', this, options);
       }
       return singular ? removed[0] : removed;
@@ -1375,28 +1384,28 @@
          * 如果是添加模式，那么遇到重复的，就先添加到set队列，遇到新的也是添加到set队列
        * 之后进行整理，整合到collection中
     */
-
-    // ?????
     set: function(models, options) {
       // 如果没有传入要操作的 models ,则直接返回
       if (models == null) return;
 
       options = _.extend({}, setOptions, options);
+      //parse 解析 models
       if (options.parse && !this._isModel(models)) {
         models = this.parse(models, options) || [];
       }
-      //判断models是不是一个数组,如果不是数组先转化成数组方便以后处理
+      // 判断models是不是一个数组,如果不是数组先转化成数组方便以后处理
       var singular = !_.isArray(models);
       models = singular ? [models] : models.slice();
 
-      //如果at为null,经过这几个条件的处理at仍然为null
+      // 如果传入了at属性，则会在插入的时候插入到at指定的models的位置
       var at = options.at;
       //强制转化为数字
       if (at != null) at = +at;
       if (at > this.length) at = this.length;
       if (at < 0) at += this.length + 1;
 
-
+      //设置各个操作的临时存储集合
+      //
       //set里面存放的是新的Collection的models
       var set = [];
       //toAdd存储将要增加的model
@@ -1408,38 +1417,39 @@
       //modelMap在删除变量的时候会被用到
       var modelMap = {};
 
+      // 配置相
       var add = options.add;
       var merge = options.merge;
       var remove = options.remove;
 
       var sort = false;
-      // 是否可以排序。如果有排序器，并且at是null并且配置中options.sort 不是false，那么就是可以排序
+      // 是否可以排序。如果有排序器，并且at是null并且配置中options.sort不是false，那么就是可以排序
       var sortable = this.comparator && at == null && options.sort !== false;
       // 按照什么属性排序
       var sortAttr = _.isString(this.comparator) ? this.comparator : null;
 
       // Turn bare objects into model references, and prevent invalid models
       // from being added.
-      // 将空对象转换为模型引用，并防止添加无效模型。
+      // 对传入的models进行处理，但是只是对models进行分类，传入到各个临时存储集合中去
       var model, i;
       for (i = 0; i < models.length; i++) {
         model = models[i];
 
         // If a duplicate is found, prevent it from being added and
         // optionally merge it into the existing model.
-        // 如果发现重复，则阻止它被添加，并且可选地将其合并到现有模型中。
-        // 判断是否重复
-        // 这个判断是否重复是根据model的cid来判断的,而cid是model在初始化的时候系统调用underscore的方法建立的随机数,并不是用户建立的
+        // 判断是否已经存在
+        // 如果发现已经存在，则阻止它被添加，并且可选地将其合并到现有模型中。
+        // 这个判断是否已经存在是根据model的cid来判断的,而cid是model在初始化的时候系统调用underscore的方法建立的随机数,并不是用户建立的
         var existing = this.get(model);
-        // 如果重复
+        // 如果已经存在
         if (existing) {
-          //如果有相同cid的model,但是model的内容却变化了
+          // 如果有相同cid的 model,但是model的内容却变化了
           if (merge && model !== existing) {
             //取出传入的model的属性
             var attrs = this._isModel(model) ? model.attributes : model;
             //进行JSON解析
             if (options.parse) attrs = existing.parse(attrs, options);
-            //重新给model赋值
+            //调用model中的set方法，进行数据合并
             existing.set(attrs, options);
 
             toMerge.push(existing);
@@ -1457,9 +1467,11 @@
         // If this is a new, valid model, push it to the `toAdd` list.
         // 如果 是 有效的新model,把它push 进`toAdd`数组
         } else if (add) {
+          // _prepareModel方法后面定义：用于将模型添加到集合中之前的一些准备工作
           model = models[i] = this._prepareModel(model, options);
           if (model) {
             toAdd.push(model);
+            //将model和collections建立联系
             this._addReference(model, options);
             modelMap[model.cid] = true;
             set.push(model);
@@ -1474,37 +1486,57 @@
           model = this.models[i];
           if (!modelMap[model.cid]) toRemove.push(model);
         }
+        // 如果有要删除的model，就调用后面定义的_removeModels方法：用于解绑某个模型与集合的关系, 包括对集合的引用和事件监听
         if (toRemove.length) this._removeModels(toRemove, options);
       }
 
       // See if sorting is needed, update `length` and splice in new models.
-      // 查看是否需要排序，更新“长度”和新模型中的拼接。如果是作为重置使用，肯定是要将没有在第一个参数中出现的删除的，如果仅仅是增加，那么就不需要删除
+      // 查看是否需要排序，更新“长度”和新模型中的拼接。
+      // 如果是作为重置使用，肯定是要将没有在第一个参数中出现的删除的，如果仅仅是增加，那么就不需要删除
       var orderChanged = false;
+      // 如果是增加模式，remove是false
       var replace = !sortable && add && remove;
       if (set.length && replace) {
+        // underscore _.some(list, [predicate], [context]) 别名： any 如果list中有任何一个元素通过 predicate 的真值检测就返回true。一旦找到了符合条件的元素, 就直接中断对list的遍历. （注：如果存在原生的some方法，就使用原生的some。）
+        // 判断是否顺序已经发生变化
         orderChanged = this.length !== set.length || _.some(this.models, function(m, index) {
           return m !== set[index];
         });
+
         this.models.length = 0;
+
         splice(this.models, set, 0);
+        // 更新长度
         this.length = this.models.length;
+
       } else if (toAdd.length) {
+        // 如果可以排序
         if (sortable) sort = true;
+        // 如果有 at，则在this.models的at处插入toAdd
         splice(this.models, toAdd, at == null ? this.length : at);
+        // 更新长度
         this.length = this.models.length;
       }
 
       // Silently sort the collection if appropriate.
+      // 如果要排序，就排序 ???
       if (sort) this.sort({silent: true});
 
       // Unless silenced, it's time to fire all appropriate add/sort/update events.
+      // 除非设置了silent，否则现在是启动所有适当的添加/排序/更新事件的时候了。
       if (!options.silent) {
+        // 遍历要添加的model
         for (i = 0; i < toAdd.length; i++) {
+          // 如果指定了添加的位置
           if (at != null) options.index = at + i;
+          // 要添加的 model
           model = toAdd[i];
+          // 触发add事件，添加model
           model.trigger('add', model, this, options);
         }
+        // 如果可以排序，或者顺序已经发生了变化，就触发sort，进行排序 ????
         if (sort || orderChanged) this.trigger('sort', this, options);
+        // 如果有新添加的或者删除的或者是需要合并的，就出发 update 方法
         if (toAdd.length || toRemove.length || toMerge.length) {
           options.changes = {
             added: toAdd,
@@ -1516,6 +1548,7 @@
       }
 
       // Return the added (or merged) model (or models).
+      // 返回已经添加了的 单个model 或者 model 数组
       return singular ? models[0] : models;
     },
 
@@ -1523,18 +1556,21 @@
     // you can reset the entire set with a new list of models, without firing
     // any granular `add` or `remove` events. Fires `reset` when finished.
     // Useful for bulk operations and optimizations.
-    // 传入一组模型，重置collection。适用于批量操作和优化。
+    // 传入一组模型，重置collection。适用于批量操作和优化。如果不传递任何模型作为参数，将清空整个集合。
     reset: function(models, options) {
       options = options ? _.clone(options) : {};
       for (var i = 0; i < this.models.length; i++) {
         // _removeReference：移除模块与集合的关系
         this._removeReference(this.models[i], options);
       }
+
+      // 将当前的 models 先赋值给 previousModels 
       options.previousModels = this.models;
-      // 重置所有状态
+      // 然后重置所有状态
       this._reset();
-      // 从新添加model
+      // 从新添加 model
       models = this.add(models, _.extend({silent: true}, options));
+      // 如果没有设置silent属性，则调用reset方法
       if (!options.silent) this.trigger('reset', this, options);
       return models;
     },
@@ -1546,7 +1582,7 @@
     },
 
     // Remove a model from the end of the collection.
-    // 从collection末尾删除一个 model .
+    // 删除并且返回集合中最后一个模型。选项和remove相同。
     pop: function(options) {
       // 找到最后一个模块
       var model = this.at(this.length - 1);
@@ -1555,13 +1591,13 @@
     },
 
     // Add a model to the beginning of the collection.
-    // 在 collection 开头添加一个 model
+    // 在集合开始的地方添加一个模型。选项和add相同。
     unshift: function(model, options) {
       return this.add(model, _.extend({at: 0}, options));
     },
 
     // Remove a model from the beginning of the collection.
-    // 从collection 开头删除一个 model
+    // 删除并且返回集合中第一个模型。选项和remove相同。
     shift: function(options) {
       // 找到第一个 model
       var model = this.at(0);
@@ -1570,13 +1606,14 @@
     },
 
     // Slice out a sub-array of models from the collection.
+    // 返回一个集合的模型的浅拷贝副本，使用与原生Array#slice相同的选项。
     slice: function() {
       return slice.apply(this.models, arguments);
     },
 
     // Get a model from the set by id, cid, model object with id or cid
     // properties, or an attributes object that is transformed through modelId.
-    // 得到model。通过id、cid 或者带有id or cid属性的model对象、或者 通过modelId转化的属性对象。
+    // 通过一个id，一个cid，或者传递一个model来 获得集合中 的模型。
     get: function(obj) {
       if (obj == null) return void 0;
       return this._byId[obj] ||
@@ -1615,7 +1652,7 @@
     // Force the collection to re-sort itself. You don't need to call this under
     // normal circumstances, as the set will maintain sort order as each item
     // is added.
-    // 强制collection排序。在正常情况下，您不需要调用它，因为在添加每个项目时，该集合将自己排序。
+    // 强制对集合进行重排序。一般情况下不需要调用本函数，因为当一个模型被添加时， comparator 函数会实时排序。要禁用添加模型时的排序，可以传递{sort: false}给add。 调用sort会触发的集合的"sort"事件。
     sort: function(options) {
       var comparator = this.comparator;
       // 调用sort方法必须指定了comparator属性(排序算法方法), 否则将抛出一个错误
@@ -1626,17 +1663,21 @@
       if (_.isFunction(comparator)) comparator = _.bind(comparator, this);
 
       // Run sort based on type of `comparator`.
+      // 根据不同类型的comparator 排序
+      // 是字符串的时候
       if (length === 1 || _.isString(comparator)) {
         this.models = this.sortBy(comparator);
+      // 是函数的时候
       } else {
         this.models.sort(comparator);
       }
+      // 如果没有指定silent参数, 则触发sort事件
       if (!options.silent) this.trigger('sort', this, options);
       return this;
     },
 
     // Pluck an attribute from each model in the collection.
-    // 将collection中所有模型的attr属性值存放到一个数组并返回
+    // 从集合中的每个模型中拉取 attribute（属性）。等价于调用 map，并从迭代器中返回单个属性。
     pluck: function(attr) {
       return this.map(attr + '');
     },
@@ -1669,6 +1710,8 @@
     // Create a new instance of a model in this collection. Add the model to the
     // collection immediately, unless `wait: true` is passed, in which case we
     // wait for the server to agree.
+    // 方便的在集合中创建一个模型的新实例。 
+    // 相当于使用属性哈希（键值对象）实例化一个模型， 然后将该模型保存到服务器， 创建成功后将模型添加到集合中，返回这个新模型。 
     // 向集合中添加并创建一个模型, 同时将该模型保存到服务器
     // 如果是通过数据对象来创建模型, 需要在集合中声明model属性对应的模型类
     // 如果在options中声明了wait属性, 则会在服务器创建成功后再将模型添加到集合, 否则先将模型添加到集合, 再保存到服务器(无论保存是否成功)
@@ -1768,6 +1811,7 @@
     // 解绑某个模型与集合的关系, 包括对集合的引用和事件监听
     // 一般在调用remove方法删除模型或调用reset方法重置状态时自动调用
     _removeModels: function(models, options) {
+      // 成功移除的模块集合
       var removed = [];
       // 遍历需要移除的模型列表
       for (var i = 0; i < models.length; i++) {
@@ -1785,9 +1829,10 @@
 
         // Remove references before triggering 'remove' event to prevent an
         // infinite loop. #3693
-        // 从_byId列表中移除模型的id引用
+        // 从_byId列表中移除模型的cid引用
         delete this._byId[model.cid];
         var id = this.modelId(model.attributes);
+        // 从_byId列表中移除模型的id引用
         if (id != null) delete this._byId[id];
 
         // 如果没有设置silent属性, 则触发模型的remove事件
@@ -1823,10 +1868,14 @@
     // Internal method to sever a model's ties to a collection.
     // 内部方法用于切断模型与集合的联系。
     _removeReference: function(model, options) {
+      // 从_byId列表中移除模型的cid引用
       delete this._byId[model.cid];
       var id = this.modelId(model.attributes);
+      // 从_byId列表中移除模型的id引用
       if (id != null) delete this._byId[id];
+      // 如果模型引用了当前集合, 则移除该引用(必须确保所有对模型的引用已经解除, 否则模型可能无法从内存中释放)
       if (this === model.collection) delete model.collection;
+      // 取消集合中监听的所有模型事件
       model.off('all', this._onModelEvent, this);
     },
 
