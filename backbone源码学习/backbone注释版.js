@@ -192,7 +192,8 @@
     // opts中参数：
     // callback 事件的回调函数
     // context 回调函数的上下文对象（即当调用on时，为context参数，当调用view.listenTo(....)时，为调用的对象如：view。）
-    // ctx 为context ，当context不存在时，为被监听的对象，如：model.on(…)或view.on(model,…)中的model
+    // ctx 为context ，当context不存在时，为被监听的对象，如：model.on(…)或view.on(model,…)中的model.
+    // 看似 ctx 与 context 差不多，但存在的意义并不相同。 ctx 可以保证有值，在 trigger 方法中需要给 callback 指定上下文，这个时候就要用到 ctx 而非 context。 但是在 off 方法中 要与用户绑定时的 context 进行对比，所以使用的是 context 而不是 ctx。
     // listening 其实就是view._listeningTo中的某个属性值，可以看成: listening == view._listeningTo[‘l1’]
     this._events = eventsApi(onApi, this._events || {}, name, callback, {
       context: context,
@@ -1050,6 +1051,14 @@
     // 如果模型isNew， 保存将采用"create"（HTTP POST）， 如果模型在服务器上已经存在， 保存将采用"update"（HTTP PUT）。
     // 如果你只想将改变属性发送到服务器， 调用model.save(attrs, {patch: true})。 你会得到一个HTTP PATCH 请求将刚刚传入的属性发送到服务器。
     // 通过新的属性调用 save 将立即触发一个"change"事件，一个"request"事件作为Ajax请求开始到服务器， 并且当服务器确认成功修改后立即触发 一个"sync"事件。 如果你想在模型上等待服务器设置新的属性，请传递{wait: true}。
+    // 传递的options中可以使用的字段以及意义为：
+    // wait: 可以指定是否等待服务端的返回结果再更新model。默认情况下不等待
+    // url: 可以覆盖掉backbone默认使用的url格式
+    // attrs: 可以指定保存到服务端的字段有哪些，配合options.patch可以产生PATCH对模型进行部分更新
+    // patch:boolean 指定使用部分更新的REST接口
+    // success: 自己定义一个回调函数
+    // data: 会被直接传递给jquery的ajax中的data，能够覆盖backbone所有的对上传的数据控制的行为
+    // 其他: options中的任何参数都将直接传递给jquery的ajax，作为其options
     save: function(key, val, options) {
       // Handle both `"key", value` and `{key: value}` -style arguments.
       // 处理 key,value 和 {key:value} 两种形式的参数
@@ -1133,7 +1142,6 @@
     // Optimistically removes the model from its collection, if it has one.
     // If `wait: true` is passed, waits for the server to respond before removal.
     // 如果服务器已经持久化，则在服务器上销毁此模型。如果有模型，则可以从Collection集合中删除该模型。 如果设置了“wait：true”，等待服务器成功响应再删除。
-    //
     // 如果模型是在客户端新建的, 则直接从客户端删除
     // 如果模型数据同时存在服务器, 则同时会删除服务器端的数据
     destroy: function(options) {
@@ -2399,9 +2407,6 @@
   // 
   // emulateJSON:如果你想在不支持发送 application/json 编码请求的Web服务器上工作，设置Backbone.emulateJSON = true;将导致JSON根据模型参数进行序列化， 并通过application/x-www-form-urlencoded MIME类型来发送一个伪造HTML表单请求
 
-
-
-
   // 参数说明：
   // method： CRUD 方法 ("create", "read", "update", or "delete")；
   // model：要被保存的模型（或要被读取的集合）
@@ -2830,6 +2835,13 @@
     // an existing route, and `false` otherwise.
     // 初始化History实例, 该方法只会被调用一次, 应该在创建并初始化Router对象之后被自动调用
     // 该方法作为整个路由的调度器, 它将针对不同浏览器监听URL片段的变化, 负责验证并通知到监听函数
+    // start函数从头到尾做了如下几件事情：
+    // 将页面的根部分保存在root中，默认是/
+    // 判断是否想用hashChange(默认为true)以及支持与否，判断是否想用pushState以及支持与否。
+    // 判断一下到底是用hash还是用push，并且做一些url处理
+    // 如果需要用到iframe，这个时候初始化一下iframe
+    // 初始化监听事件：用hash的话可以监听hashchange事件，用pushState的话可以监听popState事件，如果用了iframe，没办法，只能轮询了，这个主要是用来用户的前进后退。
+    // 最后最重要的：先处理以下当前页面的路由，也就是说，假设用户直接访问的并不是根页面，不能什么也不做呀，要调用相关路由对应的函数，所以这里要调用loadUrl
     start: function(options) {
       // 如果history对象已经被初始化过, 则抛出错误
       if (History.started) throw new Error('Backbone.history has already been started');
@@ -3056,7 +3068,7 @@
     // The options object can contain `trigger: true` if you wish to have the
     // route callback be fired (not usually desirable), or `replace: true`, if
     // you wish to modify the current URL without adding an entry to the history.
-    // 导航到指定的URL
+    // 导航到指定的URL，存储/更新历史记录
     // 如果在options中设置了trigger, 将触发导航的URL与对应路由规则的事件
     // 如果在options中设置了replace, 将使用需要导航的URL替换当前的URL在history中的位置
     navigate: function(fragment, options) {
@@ -3180,7 +3192,6 @@
     // The constructor function for the new subclass is either defined by you
     // (the "constructor" property in your `extend` definition), or defaulted
     // by us to simply call the parent constructor.
-    // 这个constructor可以自己写，也可以继承原型的构造，这是典型的ES6的class的套路
     // 如果在protoProps中指定了"constructor"属性, 则"constructor"属性被作为子类的构造函数
     // 如果没有指定构造子类构造函数, 则默认调用父类的构造函数
     if (protoProps && _.has(protoProps, 'constructor')) {
@@ -3197,7 +3208,9 @@
 
     // Set the prototype chain to inherit from `parent`, without calling
     // `parent`'s constructor function and add the prototype properties.
-    // 将父类原型链设置到子类的原型对象中, 子类以此继承父类原型链中的所有属性
+    // 将父类原型链设置到子类的原型对象中, 子类以此继承父类原型链中的所有属性，
+    // 将child的原型链与parent.prototype关联。
+    //underscore：_.create函数，的作用类似Object.create，第一个参数是要被继承的原型对象，第二个参数是要混入到新对象的键值对
     child.prototype = _.create(parent.prototype, protoProps);
     child.prototype.constructor = child;
 
