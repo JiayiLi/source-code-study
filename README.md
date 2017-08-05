@@ -10,7 +10,7 @@
 
 
 
-### node.js 之 module.js 
+### `node.js 之 module.js`
 项目地址 ：[node.js-module](https://github.com/JiayiLi/node.js-module)  有完整注释；</br>
 系统知识梳理：[【 js 模块加载 】深入学习模块化加载（node.js 模块源码）](http://www.cnblogs.com/lijiayi/p/js_node_module.html) 
 
@@ -23,7 +23,7 @@
 
 看完 underscore 建议阅读书籍《javascript函数式编程》
 
-### zepto.js
+### `zepto.js`
 **轻量级的针对现代高级浏览器的JavaScript库,与jquery有着类似的api**
 
 知识点梳理：
@@ -35,7 +35,7 @@
 
 
 
-### backbone.js
+### `backbone.js`
 **以类jq和underscore为基础的mvc框架**
 知识点梳理：
 - [【 js 基础 】【 源码学习 】backbone 源码阅读（一）](http://www.cnblogs.com/lijiayi/p/backbone1.html)
