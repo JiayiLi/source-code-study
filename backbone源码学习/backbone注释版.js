@@ -542,7 +542,7 @@
   // passed the same arguments as `trigger` is, apart from the event name
   // (unless you're listening on `"all"`, which will cause your callback to
   // receive the true name of the event as the first argument).
-  // trigger一个或者多个事件，并触发所有的回调函数
+  // 触发一个或者多个事件，并触发所有的回调函数
   Events.trigger = function(name) {
     // 每个Events对象内部有一个_events对象，保存某一个事件的回调函数队列。
     // 如果没有监听事件，则直接返回
