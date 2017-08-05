@@ -38,7 +38,8 @@
 ### `backbone.js`
 **以类jq和underscore为基础的mvc框架**
 知识点梳理：
-- [【 js 基础 】【 源码学习 】backbone 源码阅读（一）](http://www.cnblogs.com/lijiayi/p/backbone1.html)
+- [【 js 基础 】【 源码学习 】backbone 源码阅读（一）](http://www.cnblogs.com/lijiayi/p/backbone1.html) (1、MVC 框架
+2、观察者模式 以及 控制反转)
 
 
 
