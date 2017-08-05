@@ -5,6 +5,7 @@
 //     For all details and documentation:
 //     http://backbonejs.org
 
+
 (function(factory) {
 
   // Establish the root object, `window` (`self`) in the browser, or `global` on the server.
@@ -192,7 +193,8 @@
     // opts中参数：
     // callback 事件的回调函数
     // context 回调函数的上下文对象（即当调用on时，为context参数，当调用view.listenTo(....)时，为调用的对象如：view。）
-    // ctx 为context ，当context不存在时，为被监听的对象，如：model.on(…)或view.on(model,…)中的model
+    // ctx 为context ，当context不存在时，为被监听的对象，如：model.on(…)或view.on(model,…)中的model.
+    // 看似 ctx 与 context 差不多，但存在的意义并不相同。 ctx 可以保证有值，在 trigger 方法中需要给 callback 指定上下文，这个时候就要用到 ctx 而非 context。 但是在 off 方法中 要与用户绑定时的 context 进行对比，所以使用的是 context 而不是 ctx。
     // listening 其实就是view._listeningTo中的某个属性值，可以看成: listening == view._listeningTo[‘l1’]
     this._events = eventsApi(onApi, this._events || {}, name, callback, {
       context: context,
@@ -1050,6 +1052,14 @@
     // 如果模型isNew， 保存将采用"create"（HTTP POST）， 如果模型在服务器上已经存在， 保存将采用"update"（HTTP PUT）。
     // 如果你只想将改变属性发送到服务器， 调用model.save(attrs, {patch: true})。 你会得到一个HTTP PATCH 请求将刚刚传入的属性发送到服务器。
     // 通过新的属性调用 save 将立即触发一个"change"事件，一个"request"事件作为Ajax请求开始到服务器， 并且当服务器确认成功修改后立即触发 一个"sync"事件。 如果你想在模型上等待服务器设置新的属性，请传递{wait: true}。
+    // 传递的options中可以使用的字段以及意义为：
+    // wait: 可以指定是否等待服务端的返回结果再更新model。默认情况下不等待
+    // url: 可以覆盖掉backbone默认使用的url格式
+    // attrs: 可以指定保存到服务端的字段有哪些，配合options.patch可以产生PATCH对模型进行部分更新
+    // patch:boolean 指定使用部分更新的REST接口
+    // success: 自己定义一个回调函数
+    // data: 会被直接传递给jquery的ajax中的data，能够覆盖backbone所有的对上传的数据控制的行为
+    // 其他: options中的任何参数都将直接传递给jquery的ajax，作为其options
     save: function(key, val, options) {
       // Handle both `"key", value` and `{key: value}` -style arguments.
       // 处理 key,value 和 {key:value} 两种形式的参数
@@ -1133,7 +1143,6 @@
     // Optimistically removes the model from its collection, if it has one.
     // If `wait: true` is passed, waits for the server to respond before removal.
     // 如果服务器已经持久化，则在服务器上销毁此模型。如果有模型，则可以从Collection集合中删除该模型。 如果设置了“wait：true”，等待服务器成功响应再删除。
-    //
     // 如果模型是在客户端新建的, 则直接从客户端删除
     // 如果模型数据同时存在服务器, 则同时会删除服务器端的数据
     destroy: function(options) {
@@ -1748,7 +1757,7 @@
     },
 
     // Create a new collection with an identical list of models as this one.
-    // 创建一个与此相同的models列表的新集合。
+    // 返回一个模型列表完全相同的集合新实例。
     clone: function() {
       return new this.constructor(this.models, {
         model: this.model,
@@ -1775,6 +1784,7 @@
     },
 
     // Get an iterator of all [ID, model] tuples in this collection.
+    // 获得当前 集合 中 所有[ID, model]元组
     entries: function() {
       return new CollectionIterator(this, ITERATOR_KEYSVALUES);
     },
@@ -1785,6 +1795,7 @@
     _reset: function() {
       // 删除集合元素
       this.length = 0;
+      // 重置当前集合中的model
       this.models = [];
       // 重置集合状态
       this._byId  = {};
@@ -1795,14 +1806,26 @@
     // 将模型添加到集合中之前的一些准备工作
     // 包括将数据实例化为一个模型对象, 和将集合引用到模型的collection属性
     _prepareModel: function(attrs, options) {
+      // 检查是否是一个模型对象(即Model类的实例)
+      // 如果是模型对象
       if (this._isModel(attrs)) {
+        // 如果传入的是一个模型对象但没有建立与集合的引用, 则设置模型的collection属性为当前集合
         if (!attrs.collection) attrs.collection = this;
+        // 直接返回
         return attrs;
       }
+
+      // 如果不是模型对象
+      // 生成配置相
       options = options ? _.clone(options) : {};
+      // 将模型对象和集合建立引用
       options.collection = this;
+      // 将数据转化为模型
       var model = new this.model(attrs, options);
+      // 对模型中的数据进行验证
       if (!model.validationError) return model;
+
+      // 触发invalid方法
       this.trigger('invalid', this, model.validationError, options);
       return false;
     },
@@ -1859,9 +1882,13 @@
     // Internal method to create a model's ties to a collection.
     // 内部方法用于创建模型与集合的联系。
     _addReference: function(model, options) {
+      // 和cid建立联系
       this._byId[model.cid] = model;
+      // 获得模型id
       var id = this.modelId(model.attributes);
+      // 如果有id，则在this._byId集合中和ID建立联系
       if (id != null) this._byId[id] = model;
+      // 触发 all 
       model.on('all', this._onModelEvent, this);
     },
 
@@ -1870,6 +1897,7 @@
     _removeReference: function(model, options) {
       // 从_byId列表中移除模型的cid引用
       delete this._byId[model.cid];
+      // 获得模型id
       var id = this.modelId(model.attributes);
       // 从_byId列表中移除模型的id引用
       if (id != null) delete this._byId[id];
@@ -1895,8 +1923,11 @@
         if (event === 'change') {
           // 获取模型在改变之前的id, 并根据此id从集合的_byId列表中移除
           var prevId = this.modelId(model.previousAttributes());
+          // 获得模型id
           var id = this.modelId(model.attributes);
+          // 如果前后id不同
           if (prevId !== id) {
+            // 之前的id不为空，则删除之前的引用
             if (prevId != null) delete this._byId[prevId];
             // 以模型新的id作为key, 在_byId列表中存放对模型的引用
             if (id != null) this._byId[id] = model;
@@ -1915,17 +1946,22 @@
   // Defining an @@iterator method implements JavaScript's Iterable protocol.
   // In modern ES2015 browsers, this value is found at Symbol.iterator.
   // 
-  // 定义 $$iterator 方法实现JavaScript 迭代协议。在现代ES2015浏览器中，该值位于Symbol.iterator中。
+  // 定义 $$iterator 方法实现 JavaScript 迭代协议。在现代 ES2015 浏览器中，该值位于 Symbol.iterator 中。
   /* global Symbol */
   // 知识点补充：
-    // JavaScript 迭代协议: es6中新加的。
-    // 该迭代协议允许JavaScript对象来定义自己的迭代行为。一些内置类型具有默认迭代行为，例如Array或者Map，而其他类型（例如Object）不是。
-    // 为了可以迭代，一个对象必须实现 $$iterator 方法，这意味着对象（或其原型链中的一个对象）必须具有一个可通过属性访问的 $$iterator ，即Symbol.iterator：
-    // 属性[Symbol.iterator] 值是：一个零参数函数返回一个符合迭代器协议的对象。
-    // 无论何时 一个对象需要被迭代，都会调用它的 $$iterator 方法，无参数传入，并且返回的迭代器可以用来获取要迭代的值。
-    // 具体可以了解：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
+  // JavaScript 迭代协议: es6 中新加的。
+  // 该迭代协议允许 JavaScript 对象来定义自己的迭代行为。一些内置类型具有默认迭代行为，例如 Array 或者 Map ，而其他类型（例如 Object ）不是。
+  // 为了可以迭代，一个对象必须实现 $$iterator 方法，这意味着对象（或其原型链中的一个对象）必须具有一个可通过属性访问的 $$iterator ，即 Symbol.iterator：
+  // 属性[Symbol.iterator] 值是：一个零参数函数返回一个符合迭代器协议的对象。
+  // 无论何时 一个对象需要被迭代，都会调用它的 $$iterator 方法，无参数传入，并且返回的迭代器可以用来获取要迭代的值。
+  // 具体可以了解：https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
+
+  // 判断Symbol 是否是一个函数，并且将属性iterator赋值给$$iterator
   var $$iterator = typeof Symbol === 'function' && Symbol.iterator;
+
+  // 如果有 $$iterator
   if ($$iterator) {
+    // 扩展Collection原型方法，赋值为Collection.prototype.values，上方定义函数用于获取此集合中所有模型的迭代器
     Collection.prototype[$$iterator] = Collection.prototype.values;
   }
 
@@ -1938,26 +1974,27 @@
   // which can operate on Iterables.
   // Collection迭代器 实现JavaScript的迭代器协议，允许在现代浏览器中使用`for of｀循环，并支持Backbone.Collection和其它 可以操作迭代的 JavaScript 函数以及第三方库进行互操作。
 
+  // 为Collection中的values()、keys()和entries()方法，生成新实例所用
   var CollectionIterator = function(collection, kind) {
     // 获得集合
     this._collection = collection;
-
-    // 迭代的方法 ????
+    // 迭代的方法 
     this._kind = kind;
+
+    // 标志位，控制迭代序号
     this._index = 0;
   };
 
   // This "enum" defines the three possible kinds of values which can be emitted
   // by a CollectionIterator that correspond to the values(), keys() and entries()
   // methods on Collection, respectively.
-  // ?????
-  // 这个“enum”定义了可以由CollectionIterator发出的三种可能的值，它们分别对应于Collection中的values()、keys()和entries()方法。
+  // 这里定义了CollectionIterator中kind参数三种可能的值，它们分别对应于Collection中的values()、keys()和entries()方法。
   var ITERATOR_VALUES = 1;
   var ITERATOR_KEYS = 2;
   var ITERATOR_KEYSVALUES = 3;
 
   // All Iterators should themselves be Iterable.
-  // 所有迭代器本身应可迭代。
+  // 所有迭代器本身应可迭代。返回自身。
   if ($$iterator) {
     CollectionIterator.prototype[$$iterator] = function() {
       return this;
@@ -1965,29 +2002,36 @@
   }
 
   CollectionIterator.prototype.next = function() {
+    // 如果有集合
     if (this._collection) {
 
       // Only continue iterating if the iterated collection is long enough.
       // 如果迭代集合足够长，则只能继续迭代。
       if (this._index < this._collection.length) {
+        // 获得要迭代的首个 model
         var model = this._collection.at(this._index);
+        // 序号加一
         this._index++;
 
         // Construct a value depending on what kind of values should be iterated.
         // 根据应该迭代哪些类型的值构造一个值。
         var value;
-        // 如果迭代方法是 values();
+        // 如果迭代方法是 values() 用于获取此集合中所有模型的迭代器。
         if (this._kind === ITERATOR_VALUES) {
+          
           value = model;
         } else {
           var id = this._collection.modelId(model.attributes);
-          // 如果迭代方法是 keys();
+          // 如果迭代方法是 keys(); 用于在这个集合中获取所有模型id的迭代器。
           if (this._kind === ITERATOR_KEYS) {
             value = id;
+
+          // 如果迭代方法是entries()用于获得当前 集合 中 所有[ID, model]元组
           } else { // ITERATOR_KEYSVALUES
             value = [id, model];
           }
         }
+
         return {value: value, done: false};
       }
 
@@ -2095,6 +2139,7 @@
 
     // Change the view's element (`this.el` property) and re-delegate the
     // view's events on the new element.
+    // 如果你想应用一个Backbone视图到不同的DOM元素， 使用setElement， 这也将创造缓存$el引用，视图的委托事件从旧元素移动到新元素上。
     // 更改视图的元素（`this.el`属性）并重新委派新元素上的视图事件。
     setElement: function(element) {
       this.undelegateEvents();
@@ -2219,6 +2264,7 @@
 
     // Set attributes from a hash on this view's element.  Exposed for
     // subclasses using an alternative DOM manipulation API.
+    // 设置属性
     _setAttributes: function(attributes) {
       this.$el.attr(attributes);
     }
@@ -2333,7 +2379,7 @@
     addUnderscoreMethods(Base, _, methods, attribute);
   });
 
-  // Backbone.sync   同步服务器需要的函数
+  // Backbone.sync    Backbone 每次向服务器读取或保存模型时都要调用执行的函数。
   // -------------
 
   // Override this function to change the manner in which Backbone persists
@@ -2361,6 +2407,11 @@
   // emulateHTTP:如果你想在不支持Backbone的默认REST/ HTTP方式的Web服务器上工作，您可以选择开启Backbone.emulateHTTP。 设置该选项将通过 POST 方法伪造 PUT，PATCH和 DELETE 请求 用真实的方法设定X-HTTP-Method-Override头信息。
   // 
   // emulateJSON:如果你想在不支持发送 application/json 编码请求的Web服务器上工作，设置Backbone.emulateJSON = true;将导致JSON根据模型参数进行序列化， 并通过application/x-www-form-urlencoded MIME类型来发送一个伪造HTML表单请求
+
+  // 参数说明：
+  // method： CRUD 方法 ("create", "read", "update", or "delete")；
+  // model：要被保存的模型（或要被读取的集合）
+  // options：成功和失败的回调函数，以及所有 jQuery 请求支持的选项
   Backbone.sync = function(method, model, options) {
     // 根据CRUD方法名定义与服务器交互的方法(POST, GET, PUT, DELETE)
     var type = methodMap[method];
@@ -2484,7 +2535,6 @@
   // Cached regular expressions for matching named param parts and splatted
   // parts of route strings.
   // 定义用于将字符串形式的路由规则, 转换为可执行的正则表达式规则时的查找条件
-  // 
   var optionalParam = /\((.*?)\)/g;
 
   // 匹配一个URL片段中(以/"斜线"为分隔)的动态路由规则
@@ -2548,6 +2598,8 @@
       Backbone.history.route(route, function(fragment) {
         // 调用_extractParameters方法获取匹配到的规则中的参数
         var args = router._extractParameters(route, fragment);
+
+        // 调用下方定义的方法execute，用于执行回调
         if (router.execute(callback, args, name) !== false) {
           // 触发route:name事件, name为调用route时传递的事件名称
           // 如果对当前Router实例使用on方法绑定了route:name事件, 则会收到该事件的触发通知
@@ -2574,14 +2626,15 @@
 
     // Execute a route handler with the provided parameters.  This is an
     // excellent place to do pre-route setup or post-route cleanup.
+    // 在route方法内部被调用，  每当路由和其相应的callback匹配时被执行。 覆盖它来执行自定义解析或包装路由。
     execute: function(callback, args, name) {
       if (callback) callback.apply(this, args);
     },
 
     // Simple proxy to `Backbone.history` to save a fragment into the history.
-    // 通过调用history.navigate方法, 手动设置跳转到URL
+    // 每当你达到你的应用的一个点时，你想保存为一个URL，  可以调用navigate以更新的URL。 
     navigate: function(fragment, options) {
-      // 代理到history实例的navigate方法
+      // 代理到Backbone history实例的navigate方法
       Backbone.history.navigate(fragment, options);
       return this;
     },
@@ -2597,6 +2650,7 @@
       this.routes = _.result(this, 'routes');
       // underscore _.keys(object) 获取object对象所有的属性名称。
       var route, routes = _.keys(this.routes);
+      //一次处理一条内容
       while ((route = routes.pop()) != null) {
         this.route(route, this.routes[route]);
       }
@@ -2669,10 +2723,10 @@
     // checkUrl方法用于在监听到URL发生变化时检查并调用loadUrl方法
     // 
     // underscore _.bind(function, object, *arguments) 绑定函数 function 到对象 object 上, 也就是无论何时调用函数, 函数里的 this 都指向这个 object. 任意可选参数 arguments 可以传递给函数 function , 可以填充函数所需要的参数, 这也被称为 partial application。对于没有结合上下文的partial application绑定，请使用partial。 
-    // 
     this.checkUrl = _.bind(this.checkUrl, this);
 
     // Ensure that `History` can be used outside of the browser.
+    // 确保History可以在浏览器之外使用。
     if (typeof window !== 'undefined') {
       this.location = window.location;
       this.history = window.history;
@@ -2688,6 +2742,7 @@
   var rootStripper = /^\/+|\/+$/g;
 
   // Cached regex for stripping urls of hash.
+  // 获取除hash以外的url
   var pathStripper = /#.*$/;
 
   // Has the history handling already been started?
@@ -2722,7 +2777,9 @@
     // Unicode characters in `location.pathname` are percent encoded so they're
     // decoded for comparison. `%25` should not be decoded since it may be part
     // of an encoded parameter.
-    // %被编码后恰好是%25,这里十分巧妙的解决了防止fragment两次编码的问题
+    // 防止像％这样的可能是参数的一部分的符号被编码 ????
+    // `location.pathname`中的Unicode字符会被编码，因此它们被解码以进行比较。 像`％25`就不应该被解码，因为它可能是编码参数的一部分。
+    // 这里十分巧妙的解决了防止fragment两次编码的问题
     decodeFragment: function(fragment) {
       return decodeURI(fragment.replace(/%25/g, '%2525'));
     },
@@ -2739,7 +2796,9 @@
     // in Firefox where location.hash will always be decoded.
     // 获取location中Hash字符串(锚点#后的片段)
     getHash: function(window) {
+      // 将锚点(#)后的字符串提取出来并返回
       var match = (window || this).location.href.match(/#(.*)$/);
+      // 如果没有找到匹配的内容, 则返回空字符串
       return match ? match[1] : '';
     },
 
@@ -2755,13 +2814,21 @@
     // Get the cross-browser normalized URL fragment from the path or hash.
     // 从路径或哈希中获取跨浏览器的规范化URL片段。
     getFragment: function(fragment) {
+      // fragment是通过getHash或从URL中已经提取的待处理路由片段(如 #/id/1288)
+      // 如果没有传递fragment, 则根据当前路由方式进行提取
       if (fragment == null) {
+        // 使用了pushState方式进行路由
+        // fragment记录当前域名后的URL路径
         if (this._usePushState || !this._wantsHashChange) {
           fragment = this.getPath();
         } else {
+          // 使用了hash方式进行路由
+          // 通过getHash方法获取当前锚点(#)后的字符串作为路由片段
           fragment = this.getHash();
         }
       }
+      // 如果URL片段首字母为"#"或"/", 则去除该字符
+      // 返回处理之后的URL片段
       return fragment.replace(routeStripper, '');
     },
 
@@ -2769,6 +2836,13 @@
     // an existing route, and `false` otherwise.
     // 初始化History实例, 该方法只会被调用一次, 应该在创建并初始化Router对象之后被自动调用
     // 该方法作为整个路由的调度器, 它将针对不同浏览器监听URL片段的变化, 负责验证并通知到监听函数
+    // start函数从头到尾做了如下几件事情：
+    // 将页面的根部分保存在root中，默认是/
+    // 判断是否想用hashChange(默认为true)以及支持与否，判断是否想用pushState以及支持与否。
+    // 判断一下到底是用hash还是用push，并且做一些url处理
+    // 如果需要用到iframe，这个时候初始化一下iframe
+    // 初始化监听事件：用hash的话可以监听hashchange事件，用pushState的话可以监听popState事件，如果用了iframe，没办法，只能轮询了，这个主要是用来用户的前进后退。
+    // 最后最重要的：先处理以下当前页面的路由，也就是说，假设用户直接访问的并不是根页面，不能什么也不做呀，要调用相关路由对应的函数，所以这里要调用loadUrl
     start: function(options) {
       // 如果history对象已经被初始化过, 则抛出错误
       if (History.started) throw new Error('Backbone.history has already been started');
@@ -2781,7 +2855,7 @@
       // root属性设置URL导航中的路由根目录
       // 如果使用pushState方式进行路由, 则root目录之后的地址会根据不同的路由产生不同的地址(这可能会定位到不同的页面, 因此需要确保服务器支持)
       // 如果使用Hash锚点的方式进行路由, 则root表示URL后锚点(#)的位置
-      this.options          = _.extend({root: '/'}, this.options, options);
+      this.options = _.extend({root: '/'}, this.options, options);
 
 
       /**
@@ -2806,7 +2880,7 @@
              * - 当使用pushState方式进行导航时, URL可能会从options.root指定的根目录后发生变化, 这可能会导航到不同页面, 因此请确保服务器已经支持pushState方式的导航
       */
 
-      this.root             = this.options.root;
+      this.root = this.options.root;
 
       // _wantsHashChange属性记录是否希望使用hash(锚点)的方式来记录和导航路由器
       // 除非在options配置项中手动设置hashChange为false, 否则默认将使用hash锚点的方式
@@ -2814,6 +2888,7 @@
       this._wantsHashChange = this.options.hashChange !== false;
       //documentMode 属性返回浏览器渲染文档的模式,仅仅IE支持,这里要求>7或者是未定义,也就是说对IE7以下是不支持的
       this._hasHashChange   = 'onhashchange' in window && (document.documentMode === void 0 || document.documentMode > 7);
+      // 判断是否使用Hash锚点的方式进行路由
       this._useHashChange   = this._wantsHashChange && this._hasHashChange;
       // _wantsPushState属性记录是否希望使用pushState方式来记录和导航路由器
       // pushState是HTML5中为window.history添加的新特性, 如果没有手动声明options.pushState为true, 则默认将使用hash方式
@@ -2827,10 +2902,12 @@
       this.fragment         = this.getFragment();
 
       // Normalize root to always include a leading and trailing slash.
+      // 规范化root以始终包含前导和尾部的斜杠。
       this.root = ('/' + this.root + '/').replace(rootStripper, '/');
 
       // Transition from hashChange to pushState or vice versa if both are
       // requested.
+      // 从hashChange转换为pushState，反之亦然。
       if (this._wantsHashChange && this._wantsPushState) {
 
         // If we've started off with a route from a `pushState`-enabled
@@ -2840,10 +2917,12 @@
           var rootPath = this.root.slice(0, -1) || '/';
           this.location.replace(rootPath + '#' + this.getPath());
           // Return immediately as browser will do redirect to new url
+          // 浏览器将重定向到新网址立即返回
           return true;
 
         // Or if we've started out with a hash-based route, but we're currently
         // in a browser where it could be `pushState`-based instead...
+        // 或者如果我们已经开始使用基于哈希的路由，但是我们目前在浏览器中可以是“pushState”
         } else if (this._hasPushState && this.atRoot()) {
           this.navigate(this.getHash(), {replace: true});
         }
@@ -2872,12 +2951,14 @@
       }
 
       // Add a cross-platform `addEventListener` shim for older browsers.
+      // 为旧版浏览器添加一个跨平台的“addEventListener”。
       var addEventListener = window.addEventListener || function(eventName, listener) {
         return attachEvent('on' + eventName, listener);
       };
 
       // Depending on whether we're using pushState or hashes, and whether
       // 'onhashchange' is supported, determine how we check the URL state.
+      // 根据我们是否使用pushState或hash，以及是否支持'onhashchange'，确定我们如何检查URL状态。
       if (this._usePushState) {
         //当前活动历史项(history entry)改变会触发popstate事件，这个时候显然不用在监听hashchange事件了
         addEventListener('popstate', this.checkUrl, false);
@@ -2904,6 +2985,7 @@
       };
 
       // Remove window listeners.
+      // 删除window监听器。
       if (this._usePushState) {
         removeEventListener('popstate', this.checkUrl, false);
       } else if (this._useHashChange && !this.iframe) {
@@ -2987,7 +3069,7 @@
     // The options object can contain `trigger: true` if you wish to have the
     // route callback be fired (not usually desirable), or `replace: true`, if
     // you wish to modify the current URL without adding an entry to the history.
-    // 导航到指定的URL
+    // 导航到指定的URL，存储/更新历史记录
     // 如果在options中设置了trigger, 将触发导航的URL与对应路由规则的事件
     // 如果在options中设置了replace, 将使用需要导航的URL替换当前的URL在history中的位置
     navigate: function(fragment, options) {
@@ -3000,6 +3082,7 @@
       fragment = this.getFragment(fragment || '');
 
       // Don't include a trailing slash on the root.
+      // 不要在root添加尾部斜杠。
       var rootPath = this.root;
       if (fragment === '' || fragment.charAt(0) === '?') {
         rootPath = rootPath.slice(0, -1) || '/';
@@ -3024,14 +3107,18 @@
       this.fragment = decodedFragment;
 
       // If pushState is available, we use it to set the fragment as a real URL.
+      // 如果当前支持并使用了pushState方式进行导航
       if (this._usePushState) {
         //调用浏览器提供的history接口，可以压入或更新一条历史记录
         this.history[options.replace ? 'replaceState' : 'pushState']({}, document.title, url);
 
       // If hash changes haven't been explicitly disabled, update the hash
       // fragment to store history.
+      // 如果使用hash方式进行导航
       } else if (this._wantsHashChange) {
+        // 调用_updateHash方法更新当前URL为新的hash, 并将options中的replace配置传递给_updateHash方法(在该方法中实现替换或追加新的hash)
         this._updateHash(this.location, fragment, options.replace);
+        // 对于低版本的IE浏览器, 当Hash发生变化时, 更新iframe URL中的Hash
         if (this.iframe && fragment !== this.getHash(this.iframe.contentWindow)) {
           var iWindow = this.iframe.contentWindow;
 
@@ -3065,7 +3152,7 @@
 
     // Update the hash location, either replacing the current entry, or adding
     // a new one to the browser history.
-    // 更新或设置当前URL中的Has串, _updateHash方法在使用hash方式导航时被自动调用(navigate方法中)
+    // 更新或设置当前URL中的Hash, _updateHash方法在使用hash方式导航时被自动调用(navigate方法中)
     // location是需要更新hash的window.location对象
     // fragment是需要更新的hash串
     // 如果需要将新的hash替换到当前URL, 可以设置replace为true
@@ -3096,9 +3183,8 @@
   // class properties to be extended.
   /*
     这个extend是一个help函数,却是一个我们用的非常多的函数,这个函数其实其中有很多的学问在里面,也是backbone重中之重的函数
-    这个函数并没有直接将属性assign到parent上面(this),是因为这样会产生一个显著的问题:污染原型
+    这个函数并没有直接将属性分配到 parent 上面(this),是因为这样会产生一个显著的问题:污染原型
     所以实际上backbone的做法是新建了一个子对象,这个子对象承担着所有内容.
-    而backbone的这种设计也注定了其和ES6的class并不能很好的共存
   */
   var extend = function(protoProps, staticProps) {
     var parent = this;
@@ -3107,7 +3193,6 @@
     // The constructor function for the new subclass is either defined by you
     // (the "constructor" property in your `extend` definition), or defaulted
     // by us to simply call the parent constructor.
-    // 这个constructor可以自己写，也可以继承原型的构造，这是典型的ES6的class的套路
     // 如果在protoProps中指定了"constructor"属性, 则"constructor"属性被作为子类的构造函数
     // 如果没有指定构造子类构造函数, 则默认调用父类的构造函数
     if (protoProps && _.has(protoProps, 'constructor')) {
@@ -3124,7 +3209,9 @@
 
     // Set the prototype chain to inherit from `parent`, without calling
     // `parent`'s constructor function and add the prototype properties.
-    // 将父类原型链设置到子类的原型对象中, 子类以此继承父类原型链中的所有属性
+    // 将父类原型链设置到子类的原型对象中, 子类以此继承父类原型链中的所有属性，
+    // 将child的原型链与parent.prototype关联。
+    //underscore：_.create函数，的作用类似Object.create，第一个参数是要被继承的原型对象，第二个参数是要混入到新对象的键值对
     child.prototype = _.create(parent.prototype, protoProps);
     child.prototype.constructor = child;
 
@@ -3141,7 +3228,7 @@
   };
 
   // Set up inheritance for the model, collection, router, view and history.
-  // 所有的上述定义类都用到了这个helper 函数
+  // 所有的上述定义类都用到了这个 helper 函数
   Model.extend = Collection.extend = Router.extend = View.extend = History.extend = extend;
 
   // Throw an error when a URL is needed, and none is supplied.
@@ -3159,6 +3246,7 @@
       model.trigger('error', model, resp, options);
     };
   };
+
 
   return Backbone;
 });
