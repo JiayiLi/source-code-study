@@ -14,7 +14,7 @@
 项目地址 ：[node.js-module](https://github.com/JiayiLi/node.js-module)  有完整注释；</br>
 系统知识梳理：[【 js 模块加载 】深入学习模块化加载（node.js 模块源码）](http://www.cnblogs.com/lijiayi/p/js_node_module.html) 
 
-### underscore.js  
+### `underscore.js`
 **JavaScript 工具库**
 
 知识点梳理：
