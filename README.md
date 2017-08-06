@@ -40,7 +40,7 @@
 知识点梳理：
 - [【 js 基础 】【 源码学习 】backbone 源码阅读（一）](http://www.cnblogs.com/lijiayi/p/backbone1.html) (1、MVC 框架
 2、观察者模式 以及 控制反转)
-
+- [【 js 基础 】【 源码学习 】backbone 源码阅读（二）](http://www.cnblogs.com/lijiayi/p/backbone2.html) (1、控制反转、依赖注入)
 
 
 ------
