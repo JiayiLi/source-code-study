@@ -47,3 +47,18 @@
 
 综合 以上：
 [【 js 基础 】【 源码学习 】源码设计 （持续更新）](http://www.cnblogs.com/lijiayi/p/sourcecode.html)
+
+
+--------
+
+###  advice
+- 邮箱：<jiayi_li10@163.com>
+
+
+### catch me
+- 知乎：[TristaLee](https://www.zhihu.com/people/jiayi-0526)
+- 知乎专栏：[TristaLee的纸糊](https://zhuanlan.zhihu.com/front-end-web) 专注于前端知识，学一点，就确保搞懂一点。
+- 博客园：[TristaLee](http://www.cnblogs.com/lijiayi/)
+
+
+
