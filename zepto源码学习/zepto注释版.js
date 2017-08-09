@@ -1,6 +1,11 @@
 //     Zepto.js
 //     (c) 2010-2017 Thomas Fuchs
 //     Zepto.js may be freely distributed under the MIT license.
+//     
+//     内容引用于：
+//     Zepto 源码全剖析 地址：https://zhangxiang958.github.io/2017/02/16/Zepto%20%E6%BA%90%E7%A0%81%E5%85%A8%E5%89%96%E6%9E%90/
+//     zepto对象思想与源码分析  地址:https://www.kancloud.cn/wangfupeng/zepto-design-srouce/173692
+//     以及英文原文注释翻译
 
 var Zepto = (function() {
 

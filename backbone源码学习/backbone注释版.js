@@ -4,7 +4,12 @@
 //     Backbone may be freely distributed under the MIT license.
 //     For all details and documentation:
 //     http://backbonejs.org
-
+//     
+//     内容引用于：
+//     que01/backbone源码解读[转] 地址： https://gist.github.com/que01/934810128e242c95aeba4f1c8645c4ca
+//     aircloud/backboneAnalyze 地址：https://github.com/aircloud/backboneAnalyze/blob/master/src/backbone.js
+//     Backbone 源码解读（一） 地址 https://segmentfault.com/a/1190000006697372
+//     以及英文原文注释翻译
 
 (function(factory) {
 

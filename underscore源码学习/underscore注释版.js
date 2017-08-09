@@ -2,9 +2,12 @@
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
 //     Underscore may be freely distributed under the MIT license.
-//     中文注释 by hanzichi @https://github.com/hanzichi
-//     我的源码解读顺序（跟系列解读文章相对应）
-//     Object -> Array -> Collection -> Function -> Utility
+//     
+//     内容引用于：
+//     hanzichi/underscore-analysis  地址： https://github.com/hanzichi/underscore-analysis/
+//     undersercore 源码分析 地址：https://www.gitbook.com/book/yoyoyohamapi/undersercore-analysis/details
+//     以及英文原文注释翻译
+
 
 (function() {
 
