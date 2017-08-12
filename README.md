@@ -46,7 +46,7 @@
 ------
 
 综合 以上：
-[【 js 基础 】【 源码学习 】源码设计 （持续更新）](http://www.cnblogs.com/lijiayi/p/sourcecode.html)
+[【 js 基础 】【 源码学习 】源码设计 （zepto、underscore、backbone）](http://www.cnblogs.com/lijiayi/p/sourcecode.html)  `更新了bacbone设计于8月12日`
 
 
 --------
