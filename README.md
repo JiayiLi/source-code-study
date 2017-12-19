@@ -59,6 +59,7 @@
 - 知乎：[李佳怡](https://www.zhihu.com/people/jiayi-0526)
 - 知乎专栏：[李佳怡的纸糊](https://zhuanlan.zhihu.com/front-end-web) 专注于前端知识，学一点，就确保搞懂一点。
 - 博客园：[TristaLee](http://www.cnblogs.com/lijiayi/)
+- 公众号：佳怡所思（ljyFEer）是前端，也不只是前端。![公众号二维码](image/qrcode_for_gh_dd8cefdd6396_258.jpg) 
 
 
 
